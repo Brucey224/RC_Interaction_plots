@@ -18,14 +18,17 @@ from tkinter import ttk
 from tkinter import filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
+#import forallpeople
+
+#forallpeople.environment('structural', top_level=True)
 
 class Section():
     #Section class
     def __init__(self, shape= None, h=None, b=None, diameter = None, vertices = None):
         self.shape = shape
         if shape == 'rectangular':
-            self.b = float(b)
-            self.h = float(h)
+            self.b = float(b)#*mm
+            self.h = float(h)#*mm
             A = b*h
             self.A = A
             I_yy = b*h**3/12
@@ -35,7 +38,7 @@ class Section():
             self.i_y = (I_yy / A)**0.5
             self.i_z = (I_zz / A)**0.5
         elif shape == 'circular':
-            self.diameter = float(diameter)
+            self.diameter = float(diameter)#*mm
             A = math.pi*diameter**2/4
             self.A = A
             I_yy = math.pi*diameter**4/64
@@ -47,42 +50,54 @@ class Section():
         elif shape == 'arbitrary':
             self.vertices = vertices
             self.polygon = Polygon(vertices)
-            self.left_of_section = min(self.polygon.exterior.coords.xy[0])
-            self.right_of_section = max(self.polygon.exterior.coords.xy[0])
-            self.top_of_section = max(self.polygon.exterior.coords.xy[1])
-            self.bottom_of_section = min(self.polygon.exterior.coords.xy[1])
-            self.h = self.top_of_section - self.bottom_of_section
-            self.b = self.right_of_section - self.left_of_section
-            self.A = self.polygon.area
+            self.left_of_section = min(self.polygon.exterior.coords.xy[0])#*mm
+            self.right_of_section = max(self.polygon.exterior.coords.xy[0])#*mm
+            self.top_of_section = max(self.polygon.exterior.coords.xy[1])#*mm
+            self.bottom_of_section = min(self.polygon.exterior.coords.xy[1])#*mm
+            self.h = (self.top_of_section - self.bottom_of_section)
+            self.b = (self.right_of_section - self.left_of_section)
+            self.A = self.polygon.area#*mm**2
+            self.I_zz = abs(compute_second_moment_area(self.polygon) [0]) #mm**4
+            self.I_yy = abs(compute_second_moment_area(self.polygon) [1]) #mm**4
+            self.i_y = (self.I_yy / self.A)**0.5
+            self.i_z = (self.I_zz / self.A)**0.5
+
 
 class Column():
+    #Column class
     def __init__(self, section, reinforcement, concrete_properties, L_eff_y, L_eff_z):
         self.section = section
         self.reinforcement = reinforcement
         self.concrete_properties = concrete_properties
-        self.L_eff_y = float(L_eff_y)
-        self.L_eff_z = float(L_eff_z)
+        self.L_eff_y = float(L_eff_y)#*m
+        self.L_eff_z = float(L_eff_z)#*m
         if section.shape == 'rectangular':
-            self.dy = section.h - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2
-            self.d_2 = reinforcement.cover + reinforcement.link_diameter + reinforcement.bar_diameter/2
-            self.dz = section.b - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2
+            self.dy = (section.h - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2)#*mm
+            self.d_2 = (reinforcement.cover + reinforcement.link_diameter + reinforcement.bar_diameter/2)#*mm
+            self.dz = (section.b - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2)#*mm
         elif section.shape == 'circular':
-            self.d = section.diameter - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2
-            self.d_2 = reinforcement.cover + reinforcement.link_diameter + reinforcement.bar_diameter/2
-        elif section.shape =='arbitrary':
-            pass
+            self.d = (section.diameter - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2)#*mm
+            self.d_2 = (reinforcement.cover + reinforcement.link_diameter + reinforcement.bar_diameter/2)#*mm
+        elif section.shape == 'arbitrary':
+            self.dy = self.section.h - min(coord[1] for coord in self.reinforcement.arrangement)
+            self.dy_2 = min(coord[1] for coord in self.reinforcement.arrangement)
+            self.dz = self.section.b - min(coord[0] for coord in self.reinforcement.arrangement)
+            self.dz_2 = min(coord[0] for coord in self.reinforcement.arrangement)
+            # reinforcement for arbitrary sections are defined by the user
+            
 
 class Concrete_Material():
     def __init__(self, concrete_grade, f_ck, f_ck_cube, f_cm, f_ctm, f_ctk_0_05, f_ctk_0_95, E_cm, eps_c1, eps_c3, eps_cu1, eps_cu2, eps_cu3, eta, gamma_c = 1.5, alpha_cc = 0.85):
         self.grade = str(concrete_grade)
-        self.f_ck = float(f_ck)
-        self.f_ck_cube = float(f_ck_cube)
-        self.f_cd = float(alpha_cc*f_ck/gamma_c)
-        self.f_cm = float(f_cm)
-        self.f_ctm = float(f_ctm)
-        self.f_ctk_0_05 = float(f_ctk_0_05)
-        self.f_ctk_0_95 = float(f_ctk_0_95)
-        self.E_cm = float(E_cm)
+        self.f_ck = float(f_ck)#*MPa
+        self.f_ck_cube = float(f_ck_cube)#*MPa
+        self.f_cd = float(alpha_cc*f_ck/gamma_c)#*MPa
+        self.f_cm = float(f_cm)#*MPa
+        self.f_ctm = float(f_ctm)#*MPa
+        self.f_ctk_0_05 = float(f_ctk_0_05)#*MPa
+        
+        self.f_ctk_0_95 = float(f_ctk_0_95)#*MPa
+        self.E_cm = float(E_cm)#*GPa
         self.eps_c1 = float(eps_c1)
         self.eps_c3 = float(eps_c3)
         self.eps_cu1 = float(eps_cu1)
@@ -93,13 +108,14 @@ class Concrete_Material():
 class Reinforcement():
     def __init__(self, f_yk, E_s, bar_diameter, link_diameter, cover = None, shape=None, b =None, h = None, diameter = None, num_of_rows_of_rebar = None, num_of_cols_of_rebar = None, radial_number = None, rebar_coords = None, gamma_s=1.15):
         self.shape = shape
-        self.f_yk = float(f_yk)
-        self.E_s = float(E_s)
-        self.bar_diameter = float(bar_diameter)
-        self.link_diameter = float(link_diameter)
-        self.f_yd = float(f_yk / gamma_s)
+        self.f_yk = float(f_yk)#*MPa
+        self.E_s = float(E_s)#*GPa
+        self.bar_diameter = float(bar_diameter)#*mm
+        self.link_diameter = float(link_diameter)#*mm
+        self.f_yd = float(f_yk / gamma_s)#*MPa
         self.eps_ud = float((f_yk / gamma_s) /E_s)
-        self.cover = cover
+        self.cover = cover#*mm
+        A_s = 0
         if self.shape == 'rectangular':
             rebar_coords = []
             width_x = b - 2*cover - 2*link_diameter - bar_diameter
@@ -108,12 +124,14 @@ class Reinforcement():
             spacing_y = height_y / (num_of_rows_of_rebar - 1)
             #create rebar in top + bottom layer
             for i in range(num_of_cols_of_rebar):
-                x1 = cover + link_diameter + bar_diameter / 2 + i*spacing_x
-                y1 = cover + link_diameter + bar_diameter/2
+                x1 = (cover + link_diameter + bar_diameter / 2 + i*spacing_x)#*mm
+                y1 = (cover + link_diameter + bar_diameter/2)#*mm
                 rebar_coords.append([x1, y1])
                 x2 = x1
                 y2 = h - cover - link_diameter - bar_diameter/2
                 rebar_coords.append([x2,y2])
+                A_s += 2* math.pi * (bar_diameter/2)**2
+                print(f'A_s: {A_s}')
             # create side bars
             for j in range(num_of_rows_of_rebar-2):
                 x1 = cover + link_diameter + bar_diameter/2
@@ -122,6 +140,8 @@ class Reinforcement():
                 x2 = b - cover - link_diameter - bar_diameter/2
                 y2 = y1
                 rebar_coords.append([x2,y2])
+                A_s += 2* math.pi * (bar_diameter/2)**2
+                print(f'A_s: {A_s}')
 
         if self.shape == 'circular':
             rebar_coords = []
@@ -131,8 +151,13 @@ class Reinforcement():
                 x = r*math.cos(radial_spacing*i) + diameter/2
                 y = r*math.sin(radial_spacing*i) + diameter/2
                 rebar_coords.append([x,y])
+                A_s += math.pi * (bar_diameter/2)**2
+
+        if self.shape == 'arbitrary':
+            A_s = len(rebar_coords)*math.pi * (bar_diameter/2)**2
 
         self.arrangement = rebar_coords
+        self.A_s = A_s
 
 class InputApp:
     def __init__(self, root):
@@ -153,7 +178,7 @@ class InputApp:
         options = ["C12/15","C16/20","C20/25","C25/30","C30/37","C35/45","C40/50","C45/55","C50/60","C55/67","C60/75","C70/85","C80/95","C90/105"]
         #Create row for concrete choice
         concrete_choice_label = ttk.Label(self.root, text="Concrete Grade:")
-        concrete_choice_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        concrete_choice_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
         
         # Create the Combobox
         self.concrete_dropdown = ttk.Combobox(root, values=options)
@@ -162,28 +187,28 @@ class InputApp:
         self.concrete_dropdown.bind("<<ComboboxSelected>>", self.dropdown_selected)
 
         f_yk_label = ttk.Label(self.root, text="Reinforcement yield strength, f_yk:")
-        f_yk_label.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
+        f_yk_label.grid(row=1, column=0, padx=10, pady=5, sticky="e")
         self.f_yk_entry = ttk.Entry(self.root)
         self.f_yk_entry.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
         self.f_yk_entry.insert(0,"500")
         ttk.Label(self.root, text="MPa").grid(row=1, column=2, padx=10, pady=5, sticky="w")
 
         E_s_label = ttk.Label(self.root, text="Reinforcing steel Young's Modulus, E_s:")
-        E_s_label.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+        E_s_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
         self.E_s_entry = ttk.Entry(self.root)
         self.E_s_entry.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
         self.E_s_entry.insert(0,"210")
         ttk.Label(self.root, text="GPa").grid(row=2, column=2, padx=10, pady=5, sticky="w")
 
         bar_dia_label = ttk.Label(self.root, text="Main bar Diameter:")
-        bar_dia_label.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        bar_dia_label.grid(row=3, column=0, padx=10, pady=5, sticky="e")
         self.bar_dia_entry = ttk.Entry(self.root)
         self.bar_dia_entry.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
         self.bar_dia_entry.insert(0,"25")
         ttk.Label(self.root, text="mm").grid(row=3, column=2, padx=10, pady=5, sticky="w")
 
         link_dia_label = ttk.Label(self.root, text="Link Diameter:")
-        link_dia_label.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
+        link_dia_label.grid(row=4, column=0, padx=10, pady=5, sticky="e")
         self.link_dia_entry = ttk.Entry(self.root)
         self.link_dia_entry.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
         self.link_dia_entry.insert(0, "10")
@@ -195,55 +220,70 @@ class InputApp:
 
         # --- Add Right-Hand Plots below the buttons ---
         # Create a frame for the two graphs below the buttons
-        self.length_frame = ttk.Frame(self.root)
-        self.length_frame.grid(row=0, column=6, rowspan=2, columnspan=6, padx=0, pady=0, sticky="nsew")
+        
+        self.lengthloads_frame = ttk.Frame(self.root)
+        self.lengthloads_frame.grid(row=0, column=6, rowspan=5, columnspan=5, padx=0, pady=0, sticky="nsew")
 
-        self.L_Effy_label = ttk.Label(self.length_frame, text="L_eff,y:")
-        self.L_Effy_label.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
-        self.L_Effy_entry = ttk.Entry(self.length_frame)
-        self.L_Effy_entry.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-        self.L_Effy_units = ttk.Label(self.length_frame, text="m")
-        self.L_Effy_units.grid(row=1, column=2, padx=10, pady=5, sticky="w")
+        self.L_Effy_label = ttk.Label(self.lengthloads_frame, text="L_eff,y:")
+        self.L_Effy_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
+        self.L_Effy_entry = ttk.Entry(self.lengthloads_frame)
+        self.L_Effy_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        self.L_Effy_units = ttk.Label(self.lengthloads_frame, text="m")
+        self.L_Effy_units.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
-        self.L_effz_label = ttk.Label(self.length_frame, text="L_eff,z:")
-        self.L_effz_label.grid(row=1, column=3, padx=10, pady=5, sticky="ew")
-        self.L_effz_entry = ttk.Entry(self.length_frame)
-        self.L_effz_entry.grid(row=1, column=4, padx=10, pady=5, sticky="ew")
-        self.L_effz_units = ttk.Label(self.length_frame, text="m")
-        self.L_effz_units.grid(row=1, column=5, padx=10, pady=5, sticky="w")
+        self.L_effz_label = ttk.Label(self.lengthloads_frame, text="L_eff,z:")
+        self.L_effz_label.grid(row=0, column=3, padx=10, pady=5, sticky="e")
+        self.L_effz_entry = ttk.Entry(self.lengthloads_frame)
+        self.L_effz_entry.grid(row=0, column=4, padx=10, pady=5, sticky="ew")
+        self.L_effz_units = ttk.Label(self.lengthloads_frame, text="m")
+        self.L_effz_units.grid(row=0, column=5, padx=10, pady=5, sticky="w")
 
-        self.loads_frame = ttk.Frame(self.root)
-        self.loads_frame.grid(row=1, column=6, rowspan=2, columnspan=6, padx=0, pady=0, sticky="nsew")
+        self.N_Ed_label = ttk.Label(self.lengthloads_frame, text="N_Ed:")
+        self.N_Ed_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
+        self.N_Ed_entry = ttk.Entry(self.lengthloads_frame)
+        self.N_Ed_entry.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+        self.N_Ed_units = ttk.Label(self.lengthloads_frame, text="kN")
+        self.N_Ed_units.grid(row=2, column=2, padx=10, pady=5, sticky="w")
 
-        self.N_Ed_label = ttk.Label(self.loads_frame, text="N_Ed:")
-        self.N_Ed_label.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
-        self.N_Ed_entry = ttk.Entry(self.loads_frame)
-        self.N_Ed_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-        self.N_Ed_units = ttk.Label(self.loads_frame, text="kN")
-        self.N_Ed_units.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+        self.First_order_moments_label = ttk.Label(self.lengthloads_frame, text="First Order Moments:")
+        self.First_order_moments_label.grid(row=3, column=0, padx=10, pady=5, sticky="w")
 
-        self.M_Edy_label = ttk.Label(self.loads_frame, text="M_Ed,y:")
-        self.M_Edy_label.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
-        self.M_Edy_entry = ttk.Entry(self.loads_frame)
-        self.M_Edy_entry.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-        self.M_Edy_units = ttk.Label(self.loads_frame, text="kNm")
-        self.M_Edy_units.grid(row=1, column=2, padx=10, pady=5, sticky="w")
+        self.M_y_top_label = ttk.Label(self.lengthloads_frame, text="M_y [top]:")
+        self.M_y_top_label.grid(row=4, column=0, padx=10, pady=5, sticky="e")
+        self.M_y_top_entry = ttk.Entry(self.lengthloads_frame)
+        self.M_y_top_entry.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
+        self.M_y_top_units = ttk.Label(self.lengthloads_frame, text="kNm")
+        self.M_y_top_units.grid(row=4, column=2, padx=10, pady=5, sticky="w")
 
-        self.M_Edz_label = ttk.Label(self.loads_frame, text="M_Ed,z:")
-        self.M_Edz_label.grid(row=1, column=3, padx=10, pady=5, sticky="ew")
-        self.M_Edz_entry = ttk.Entry(self.loads_frame)
-        self.M_Edz_entry.grid(row=1, column=4, padx=10, pady=5, sticky="ew")
-        self.M_Edz_units = ttk.Label(self.loads_frame, text="kNm")
-        self.M_Edz_units.grid(row=1, column=5, padx=10, pady=5, sticky="w")
+        self.M_y_bottom_label = ttk.Label(self.lengthloads_frame, text="M_y [bottom]:")
+        self.M_y_bottom_label.grid(row=5, column=0, padx=10, pady=5, sticky="e")
+        self.M_y_bottom_entry = ttk.Entry(self.lengthloads_frame)
+        self.M_y_bottom_entry.grid(row=5, column=1, padx=10, pady=5, sticky="ew")
+        self.M_y_bottom_units = ttk.Label(self.lengthloads_frame, text="kNm")
+        self.M_y_bottom_units.grid(row=5, column=2, padx=10, pady=5, sticky="w")
+
+        self.M_z_top_label = ttk.Label(self.lengthloads_frame, text="M_z [top]:")
+        self.M_z_top_label.grid(row=4, column=3, padx=10, pady=5, sticky="e")
+        self.M_z_top_entry = ttk.Entry(self.lengthloads_frame)
+        self.M_z_top_entry.grid(row=4, column=4, padx=10, pady=5, sticky="ew")
+        self.M_z_top_units = ttk.Label(self.lengthloads_frame, text="kNm")
+        self.M_z_top_units.grid(row=4, column=5, padx=10, pady=5, sticky="w")
+
+        self.M_z_bottom_label = ttk.Label(self.lengthloads_frame, text="M_z [botom]:")
+        self.M_z_bottom_label.grid(row=5, column=3, padx=10, pady=5, sticky="e")
+        self.M_z_bottom_entry = ttk.Entry(self.lengthloads_frame)
+        self.M_z_bottom_entry.grid(row=5, column=4, padx=10, pady=5, sticky="ew")
+        self.M_z_bottom_units = ttk.Label(self.lengthloads_frame, text="kNm")
+        self.M_z_bottom_units.grid(row=5, column=5, padx=10, pady=5, sticky="w")
 
         self.plot_major_axis_button = ttk.Button(self.root, text="Plot Major Axis Failure Envelope", command = self.plot_major_axis_failure_envelope)
-        self.plot_major_axis_button.grid(row=3, column=6, padx=10, pady=5, sticky="ew")
+        self.plot_major_axis_button.grid(row=5, column=6, padx=10, pady=5, sticky="ew")
 
         self.plot_minor_axis_button = ttk.Button(self.root, text="Plot Minor Axis Failure Envelope", command = self.plot_minor_axis_failure_envelope)
-        self.plot_minor_axis_button.grid(row=3, column=8, padx=10, pady=5, sticky="ew")
+        self.plot_minor_axis_button.grid(row=5, column=8, padx=10, pady=5, sticky="ew")
 
         self.plot_frame = ttk.Frame(self.root)
-        self.plot_frame.grid(row=4, column=6, columnspan=4, rowspan=10, padx=10, pady=10, sticky="nsew")
+        self.plot_frame.grid(row=6, column=6, columnspan=4, rowspan=10, padx=10, pady=10, sticky="nsew")
 
         # Add first plot frame
         self.plot1_frame = ttk.Frame(self.plot_frame)
@@ -495,7 +535,7 @@ class InputApp:
         try:
             x = float(self.bar_x_input.get())
             y = float(self.bar_y_input.get())
-            self.bar_list.append((x, y))
+            self.bar_list.append([x, y])
 
             self.update_bar_display()
             self.update_section_plot()
@@ -512,7 +552,7 @@ class InputApp:
         try:
             x = float(self.x_input.get())
             y = float(self.y_input.get())
-            self.coord_list.append((x, y))
+            self.coord_list.append([x, y])
             
             # Update the list of coordiantes
             self.update_coord_display()
@@ -610,25 +650,26 @@ class InputApp:
 
     def plot_major_axis_failure_envelope(self, shape = None, h = None, b = None, diameter = None, vertices = None):
         #Collect user inputs for processing
-        N_Ed, M_Edy, M_Edz, column = self.collect_user_input()
+        N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = self.collect_user_input()
+        My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom)
         N_Rd_positive_list = []
         N_Rd_negative_list = []
         M_Rdy_positive_list = []
         M_Rdy_negative_list = []
         Npl_Rd = (column.section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
-        
+
         if column.section.shape == "rectangular" or column.section.shape == "arbitrary":
             y_limit = column.section.h
         elif column.section.shape == "circular":
             y_limit = column.section.diameter
-        for y in range(1, int(y_limit*3),1):
+        for y in range(1, int(y_limit*5),1):
             #add axial force and major axis moment to list for plotting
             N_Rd, M_Rdy, steel_stresses, steel_strains = determine_envelope_value_major_axis_positive(column, 0.8, y)
             N_Rd_positive_list.append(min(Npl_Rd,N_Rd))
             M_Rdy_positive_list.append(M_Rdy)
         
         # PLOT NEGATIVE MOMENT SIDE OF DIAGRAM
-        for y in range(1, int(y_limit*3), 1):
+        for y in range(1, int(y_limit*5), 1):
             # add axial force and major axis moment to list for plotting
             N_Rd, M_Rdy, steel_stresses, steel_strains = determine_envelope_value_major_axis_negative(column, 0.8, y)
             N_Rd_negative_list.append(min(Npl_Rd,N_Rd))
@@ -646,7 +687,8 @@ class InputApp:
         self.ax1.clear()
         self.ax1.plot(M_Rdy_positive_list, N_Rd_positive_list, label = 'Interaction envelope - major axis - positive moment', color = '#006D62')
         self.ax1.plot(M_Rdy_negative_list, N_Rd_negative_list, label = 'Interaction envelope - major axis - negative moment', linestyle = '--', color = '#802628')
-        self.ax1.scatter(M_Edy,N_Ed, label = 'Design action effects')
+        self.ax1.scatter(My_02,N_Ed, label = 'First Order design action effects', color = '#88BBC2')
+        self.ax1.scatter(M_Edy,N_Ed, label = 'Second Order design action effects', color = '#C2B658')
         self.ax1.axhline(0, color='black', linewidth=0.5)  # Horizontal line at y = 0
         self.ax1.axvline(0, color='black', linewidth=0.5)  # Vertical line at x = 0
         self.ax1.grid(True, which='major', linestyle='-', linewidth=0.4, color='gray', alpha=0.5)
@@ -660,10 +702,11 @@ class InputApp:
         self.ax1.tick_params(axis='x', rotation=90)
         self.ax1.set_xlabel('M [kNm]', loc='right')  # Move the x-axis label to the right
         self.ax1.set_ylabel('N [kN]', loc='top')
-        self.canvas1.draw()
+        self.canvas1.draw()  
         
     def plot_minor_axis_failure_envelope(self):
-        N_Ed, M_Edy, M_Edz, column = self.collect_user_input()
+        N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = self.collect_user_input()
+        My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom)
 
         Npl_Rd = (column.section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
         # PLOT MAJOR AXIS INTERACTION DIAGRAM
@@ -675,12 +718,12 @@ class InputApp:
             x_limit = column.section.b
         elif column.section.shape == "circular":
             x_limit = column.section.diameter
-        for x in range(1, int(x_limit*3) ,1):
+        for x in range(1, int(x_limit*5) ,1):
             N_Rd, M_Rdz, steel_stresses, steel_strains = determine_envelope_value_minor_axis_positive(column, 0.8, x)
             N_Rd_positive_list.append(min(Npl_Rd,N_Rd))
             M_Rdz_positive_list.append(M_Rdz)
 
-        for x in range(1, int(x_limit*3) ,1):
+        for x in range(1, int(x_limit*5) ,1):
             # add axial force and major axis moment to list for plotting
             N_Rd, M_Rdz, steel_stresses, steel_strains = determine_envelope_value_minor_axis_negative(column, 0.8, x)
             N_Rd_negative_list.append(min(Npl_Rd,N_Rd))
@@ -689,7 +732,8 @@ class InputApp:
         self.ax2.clear()
         self.ax2.plot(M_Rdz_positive_list, N_Rd_positive_list, label = 'Interaction envelope - major axis - positive moment', color = '#006D62')
         self.ax2.plot(M_Rdz_negative_list, N_Rd_negative_list, label = 'Interaction envelope - major axis - negative moment', linestyle = '--', color = '#802628')
-        self.ax2.scatter(M_Edz,N_Ed, label = 'Design action effects')
+        self.ax2.scatter(Mz_02,N_Ed, label = 'First Order design action effects', color = '#88BBC2')
+        self.ax2.scatter(M_Edz,N_Ed, label = 'Second Order design action effects', color = '#C2B658')
         self.ax2.axhline(0, color='black', linewidth=0.5)  # Horizontal line at y = 0
         self.ax2.axvline(0, color='black', linewidth=0.5)  # Vertical line at x = 0
         self.ax2.grid(True, which='major', linestyle='-', linewidth=0.4, color='gray', alpha=0.5)
@@ -708,8 +752,10 @@ class InputApp:
     def collect_user_input(self):
         shape = self.shape_var.get()
         N_Ed = float(self.N_Ed_entry.get())
-        M_Edy = float(self.M_Edy_entry.get())
-        M_Edz = float(self.M_Edz_entry.get())
+        M_y_top = float(self.M_y_top_entry.get()) 
+        M_y_bottom = float(self.M_y_bottom_entry.get())
+        M_z_top = float(self.M_z_top_entry.get())
+        M_z_bottom = float(self.M_z_bottom_entry.get())
         concrete_grade = self.concrete_dropdown.get()
         concrete_properties = get_concrete_properties(concrete_grade)
         L_eff_y = float(self.L_Effy_entry.get())
@@ -738,7 +784,7 @@ class InputApp:
             section = Section(shape = shape, vertices = vertices)
             rebar = Reinforcement(f_yk, E_s, bar_dia, link_dia, shape=shape, rebar_coords = rebar_coords)
         column = Column(section, rebar, concrete_properties, L_eff_y, L_eff_z)
-        return N_Ed, M_Edy, M_Edz, column
+        return N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column
 
 def get_concrete_properties(concrete_grade, gamma_c = 1.5, alpha_cc=0.85):
     #extract material properties from database
@@ -773,8 +819,8 @@ def moment_capacity(x, A_s, h, b, d, d_2, E_s, f_yd, eps_cu2, eps_c3, f_cd, lamb
         concrete_strain = eps_cu2
         eps_sc = concrete_strain * (1 - d_2/x)
         eps_st = concrete_strain * (1 - d/x)
-    else:
-        concrete_strain = eps_c3
+    else: 
+        concrete_strain = eps_c3 * x / (x - h/2)
         eps_sc = concrete_strain * (x - d_2) / (x - h/2)
         eps_st = concrete_strain * (x - d) / (x - h/2)
     sigma_sc = max(min(eps_sc * E_s, f_yd),- f_yd)
@@ -789,8 +835,6 @@ def determine_max_moment(A_s, h, b, d, d_2, E_s, f_yd, eps_cu2, eps_c3, f_cd, la
     # Extract the maximum value and corresponding argument
     max_value = -result.fun  # The result.fun attribute contains the minimum value
     arg_max = result.x  # The result.x attribute contains the value of x at the maximum
-    #print(f"Maximum Moment capacity:       {max_value} kNm")
-    #print(f"Neutral axis for max moment:   {arg_max[0]} mm")
 
 def integrate_part_of_circle(neutral_axis, diameter, lambd):
     r = diameter / 2 
@@ -810,6 +854,21 @@ def integrate_part_of_circle(neutral_axis, diameter, lambd):
         lever_arm = neutral_axis - diameter/2
         centroid_y = diameter/2
     return area, centroid, lever_arm
+
+def compute_second_moment_area(polygon: Polygon):
+    c_x, c_y = polygon.centroid.x, polygon.centroid.y
+    coords = list(polygon.exterior.coords)
+    Ix = 0.0
+    Iy = 0.0
+    Ixy = 0.0
+
+    for i in range(len(coords) - 1):
+        x0, y0 = coords[i]
+        x1, y1 = coords[i + 1]
+
+        Ix += 1/12* (y0 - y1)*(x1+x0-2*c_x)*(x1**2+x0**2+2*c_x*(c_x-x0-x1))        
+        Iy += 1/12* (x0 - x1)*(y1+y0-2*c_y)*(y1**2+y0**2+2*c_y*(c_y-y0-y1))
+    return Ix, Iy
 
 # Function to clip polygon at a certain y value
 def clip_polygon_at_y(polygon, y_value):
@@ -842,26 +901,175 @@ def compute_area_and_centroid(polygon):
     Cy = np.sum((y[:-1] + y[1:]) * (y[:-1] * x[1:] - y[1:] * x[:-1])) / (6*A)
     return A, (Cx, Cy)
 
+def check_moments(N_Ed, M_top, M_bottom):
+    e_i = 60/400 # eccentricity in mm
+    
+    if abs (M_top) > abs(M_bottom):
+        if M_top >0:
+            M_02 = M_top + N_Ed * e_i*1e-3
+        else:
+            M_02 = M_top - N_Ed * e_i*1e-3
+        if M_bottom >0:
+            M_01 = M_bottom + N_Ed*1e-3
+        else:
+            M_01 = M_bottom - N_Ed * e_i*1e-3 
+    else: 
+        if M_top > 0:
+            M_01 = M_top + N_Ed * e_i*1e-3
+        else:
+            M_01 = M_top - N_Ed * e_i*1e-3
+        if M_bottom > 0:
+            M_02 = M_bottom + N_Ed * e_i*1e-3
+        else:
+            M_02 = M_bottom - N_Ed * e_i*1e-3
+    return M_01, M_02
+
+def check_slenderness (column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, phi_eff = None):
+    M_01y, M_02y =  check_moments(N_Ed, M_y_top, M_y_bottom)
+    M_01z, M_02z =  check_moments(N_Ed, M_z_top, M_z_bottom)
+    
+    # Check absolute slenderness
+    slenderness_ratio_y = column.L_eff_y*1e3 / column.section.i_y
+    slenderness_ratio_z = column.L_eff_z*1e3 / column.section.i_z
+
+    if column.section.shape == "rectangular":
+        e_0 = max(column.section.h/30, 20)*1e-3 # eccentricity dimension in m 
+    elif column.section.shape == "circular":
+        e_0 = max(column.section.diameter/30, 20)*1e-3 # eccentricity dimension in m
+    elif column.section.shape == "arbitrary":
+        e_0  = max((column.section.top_of_section - column.section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
+    # Check slenderness limits
+    print(f"reinforcement area: {column.reinforcement.A_s}")
+    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.section.A*column.concrete_properties.f_cd)
+    print(f'reinforcement ratio: {mechanical_reinforcement_ratio}')
+    if phi_eff:
+        A = 1 / (1+0.2*phi_eff)
+    else:
+        A = 0.7
+    B = (1+2*mechanical_reinforcement_ratio)**0.5
+    r_m_y = M_01y / M_02y
+    r_m_z = M_01z / M_02z
+    C_y = 1.7 - r_m_y
+    C_z = 1.7 - r_m_z
+    n = N_Ed / (column.section.A * column.concrete_properties.f_cd * 1e-3)  # axial force utilisation
+    print(f'A: {A}')
+    print(f'B: {B}')
+    print(f'C_y: {C_y}')
+    print(f'C_z: {C_z}')
+    print(f'n: {n}')
+    slenderness_limit_y = 20*A*B*C_y / (n**0.5)  
+    print(f'slenderness ratio [y]: {slenderness_ratio_y}')
+    print(f'slenderness limit [y]: {slenderness_limit_y}')
+    slenderness_limit_z = 20*A*B*C_z / (n**0.5)
+    print(f'slenderness ratio [z]: {slenderness_ratio_z}')
+    print(f'slenderness limit [z]: {slenderness_limit_z}')
+    # return major axis moment dependant on slenderness in major axis
+    if slenderness_ratio_y > slenderness_limit_y:
+        slenderness_y = True
+        print("Column is slender is about the major axis")
+        M_Edy = M_02y/abs(M_02y) * compute_major_axis_slender_moments(column, slenderness_ratio_y, N_Ed, n, M_01y, M_02y, phi_eff = 2.15) #MEdy is returned in kNm
+    else:
+        slenderness_y = False
+        M_Edy = M_02y/abs(M_02y) * max(M_02y, N_Ed * e_0)
+        print("Column is not slender about major axis")
+    # return minor axis moment dependant on slenderness in minor axis
+    if slenderness_ratio_z > slenderness_limit_z:
+        slenderness_z = True
+        print("Column is slender is about the minor axis")
+        M_Edz = M_02z/abs(M_02z) *compute_minor_axis_slender_moments(column, slenderness_ratio_z, N_Ed, n, M_01z, M_02z, phi_eff = 2.15)
+    else:
+        slenderness_z = False
+        print("Column is not slender about minor axis")
+        M_Edz = M_02y/abs(M_02y) * max(M_02y, N_Ed * e_0)
+    return M_01y, M_02y, M_01z, M_02z, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z
+
+def compute_major_axis_slender_moments(column, slenderness_ratio, N_Ed, n, M_01y, M_02y, phi_eff = 2.15):
+    print(f"reinforcement area: {column.reinforcement.A_s}")
+    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.section.A*column.concrete_properties.f_cd) 
+    n_u = 1 + mechanical_reinforcement_ratio
+    n_bal = 0.4
+    K_r = min((n_u - n)/(n_u - n_bal), 1)
+    print(f'K_r: {K_r}')
+    if column.section.shape == "rectangular":
+        e_0 = max(column.section.h/30, 20)*1e-3 # eccentricity dimension in m 
+    elif column.section.shape == "circular":
+        e_0 = max(column.section.diameter/30, 20)*1e-3 # eccentricity dimension in m
+    elif column.section.shape == "arbitrary":
+        e_0  = max((column.section.top_of_section - column.section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
+
+    beta = 0.35 + column.concrete_properties.f_ck/200 - slenderness_ratio/150
+    K_phi = max (1, (1+beta*phi_eff))
+    e_2y = (0.1* (K_r * K_phi * column.reinforcement.f_yd) / (0.45 * column.dy * column.reinforcement.E_s*1e3) * (column.L_eff_y*1e3)**2) *1e-3 # eccentricity dimension in m
+    M_0e_y = 0.6*M_02y + 0.4*M_01y
+    M_2y = N_Ed * e_2y
+    M_Ed_y = max(M_02y, (M_0e_y + M_2y), (M_01y + 0.2*M_2y), N_Ed*e_0)
+    
+    return M_Ed_y
+
+def compute_minor_axis_slender_moments(column, slenderness_ratio, N_Ed, n, M_01z, M_02z, phi_eff = 2.15):
+    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.section.A*column.concrete_properties.f_cd)
+    n_u = 1 + mechanical_reinforcement_ratio
+    n_bal = 0.4
+    if (n_u - n)/(n_u - n_bal) >=1:
+        K_r = 1.0
+    else:
+        K_r = (n_u - n)/(n_u - n_bal)
+    
+    if column.section.shape == "rectangular":
+        e_0 = max(column.section.h/30, 20)*1e-3 # eccentricity dimension in m 
+    elif column.section.shape == "circular":
+        e_0 = max(column.section.diameter/30, 20)*1e-3 # eccentricity dimension in m
+    elif column.section.shape == "arbitrary":
+        e_0  = max((column.section.top_of_section - column.section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
+
+    beta = 0.35 + column.concrete_properties.f_ck/200 - slenderness_ratio/150
+    K_phi = max (1, (1+beta*phi_eff))
+    e_2z = (0.1* (K_r*K_phi*column.reinforcement.f_yd/(0.45*column.dz*column.reinforcement.E_s*1e3))*(column.L_eff_z*1e3)**2) *1e-3 # eccentricity dimension in m
+    M_0e_z = 0.6*M_02z + 0.4*M_01z
+    M_2z = N_Ed * e_2z
+    M_Ed_z = max(M_02z, (M_0e_z + M_2z), (M_01z + 0.2*M_2z), N_Ed*e_0)
+    return M_Ed_z
+
+def compute_creep_coefficients(column, RH, M_Ed_y, M_Ed_z, M_0Eqp_y, M_0Eqp_z, t_0, h_0):
+    f_cm = column.concrete_properties.f_cm
+    alpha_1 = (35/f_cm)**0.7
+    alpha_2 = (35/f_cm)**0.2
+    alpha_3 = (35/f_cm)**0.5
+    if f_cm <=35:
+        phi_RH = 1 + (1-(RH/100)) / (0.1*h_0**(1/3))
+    else:
+        phi_RH = (1 + (1-(RH/100)) / (0.1*h_0**(1/3))* alpha_1 )* alpha_2
+    beta_fcm = 16.8 / f_cm**0.5
+    beta_t_0 =  1 / (0.1 + t_0**0.2)
+    h_0 = 2*column.section.A / column.section.polygon.length
+    phi_0 = phi_RH * beta_fcm * beta_t_0
+    phi_inf_t0 = phi_RH * beta_fcm * beta_t_0  
+    phi_effy = phi_inf_t0 * M_0Eqp_y / M_Ed_y
+    phi_effz = phi_inf_t0 * M_0Eqp_z / M_Ed_z
+
+    return phi_effy, phi_effz
+    
 def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):       # Determines envelope value for major axis bending
     N_Rd = 0 # Axial capacity in kN
     M_Rdy = 0 # Moment capacity in kNm
+
     if column.section.shape == 'rectangular':
         section_centroid = [column.section.b/2, column.section.h/2]
-        d_c = min(lambd*neutral_axis_y, column.section.h)
+        d_cy = min(lambd*neutral_axis_y, column.section.h)
         if neutral_axis_y <= column.section.h:
             in_section = True
             lever_arm_concrete_y = neutral_axis_y * (1 - lambd/2)
-            N_Rd += d_c * column.section.b * column.concrete_properties.f_cd *1e-3
-            M_Rdy += d_c * column.section.b * column.concrete_properties.f_cd * lever_arm_concrete_y *1e-6
+            N_Rd += d_cy * column.section.b * column.concrete_properties.f_cd *1e-3
+            M_Rdy += d_cy * column.section.b * column.concrete_properties.f_cd * lever_arm_concrete_y *1e-6
         else:
             in_section = False
-            lever_arm_concrete_y = (neutral_axis_y - column.section.h/2)
-            N_Rd += d_c * column.section.b * column.concrete_properties.f_cd *1e-3
-            M_Rdy += d_c * column.section.b * column.concrete_properties.f_cd * lever_arm_concrete_y * 1e-6
+            lever_arm_concrete_y = (neutral_axis_y - d_cy/2)
+            N_Rd += d_cy * column.section.b * column.concrete_properties.f_cd *1e-3
+            M_Rdy += d_cy * column.section.b * column.concrete_properties.f_cd * lever_arm_concrete_y * 1e-6
     
     elif column.section.shape == 'circular':
         section_centroid = [column.section.diameter/2, column.section.diameter/2]
-        if lambd*neutral_axis_y <= column.section.diameter:
+        if neutral_axis_y <= column.section.diameter:
             in_section = True
             segment_area, centroid_y, lever_arm_concrete_y = integrate_part_of_circle(neutral_axis_y, column.section.diameter, lambd) # area in mm^2, centroid distance in mm
             N_Rd += segment_area*column.concrete_properties.f_cd *1e-3
@@ -876,7 +1084,7 @@ def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):
     
     elif column.section.shape == 'arbitrary':
         section_centroid = compute_area_and_centroid(column.section.polygon)[1]
-        if neutral_axis_y <= lambd*column.section.h:
+        if neutral_axis_y <= column.section.h:
             in_section = True
         else:
             in_section = False
@@ -899,7 +1107,7 @@ def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):
     if in_section == True:
         concrete_strain = column.concrete_properties.eps_cu2
     else:
-        concrete_strain = column.concrete_properties.eps_c3
+        concrete_strain = column.concrete_properties.eps_c3*neutral_axis_y/(neutral_axis_y - section_centroid[1])
     
     # loop through steel reinforcement, determine stresses and add to moment capacity / axial capacity
     for rebar_coords in column.reinforcement.arrangement:
@@ -910,7 +1118,7 @@ def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):
                 steel_strain = concrete_strain * ((column.section.bottom_of_section + neutral_axis_y) - rebar_coords[1]) / (neutral_axis_y)   # Steel strain computed if neutral axis is within the section. Sim triangles 
         else:
             if column.section.shape == "rectangular":
-                steel_strain = (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y - section_centroid[1]) * concrete_strain
+                steel_strain = (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y) * concrete_strain
             elif column.section.shape == "circular":
                 steel_strain = concrete_strain * (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y - column.section.diameter/2)
             elif column.section.shape == "arbitrary":
@@ -947,20 +1155,18 @@ def determine_envelope_value_major_axis_negative(column, lambd, neutral_axis_y):
     if column.section.shape == 'rectangular':
         section_centroid = [column.section.b/2, column.section.h/2]
         d_cy = min(lambd * neutral_axis_y, column.section.h)
-        if (column.section.h - lambd*neutral_axis_y) > 0:
+        lever_arm_concrete_y = d_cy/2 - neutral_axis_y
+        N_Rd += d_cy * column.section.b * column.concrete_properties.f_cd *1e-3
+        if (column.section.h - neutral_axis_y) > 0:
             in_section = True
-            lever_arm_concrete_y = neutral_axis_y * (lambd/2 - 1)
-            N_Rd += d_cy * column.section.b * column.concrete_properties.f_cd *1e-3
             M_Rdy += d_cy * column.section.b * column.concrete_properties.f_cd * lever_arm_concrete_y *1e-6
         else:
             in_section = False
-            lever_arm_concrete_y = column.section.h/2 - neutral_axis_y
-            N_Rd += d_cy * column.section.b * column.concrete_properties.f_cd *1e-3
             M_Rdy += d_cy * column.section.b * column.concrete_properties.f_cd * lever_arm_concrete_y * 1e-6
     
     elif column.section.shape == 'circular':
         section_centroid = [column.section.diameter/2, column.section.diameter/2]
-        if (column.section.diameter-lambd*neutral_axis_y) > 0:
+        if (column.section.diameter - neutral_axis_y) > 0:
             in_section = True
             segment_area, centroid_y, lever_arm_y = integrate_part_of_circle(neutral_axis_y, column.section.diameter, lambd) # area in mm^2, centroid distance in mm
             N_Rd += segment_area* column.concrete_properties.f_cd *1e-3
@@ -996,7 +1202,7 @@ def determine_envelope_value_major_axis_negative(column, lambd, neutral_axis_y):
     if in_section == True:
         concrete_strain = column.concrete_properties.eps_cu2
     else:
-        concrete_strain = column.concrete_properties.eps_c3
+        concrete_strain = column.concrete_properties.eps_c3*neutral_axis_y/(neutral_axis_y - section_centroid[1])
     
     # loop through steel reinforcement, determine stresses and add to moment capacity / axial capacity
     for rebar_coords in column.reinforcement.arrangement:
@@ -1009,9 +1215,9 @@ def determine_envelope_value_major_axis_negative(column, lambd, neutral_axis_y):
                 steel_strain = concrete_strain * (rebar_coords[1] - (column.section.top_of_section - neutral_axis_y)) / neutral_axis_y
         else:
             if column.section.shape == "rectangular":
-                steel_strain = concrete_strain * (rebar_coords[1] - (column.section.h - neutral_axis_y)) / (neutral_axis_y - section_centroid[1])
+                steel_strain = concrete_strain * (rebar_coords[1] - (column.section.h - neutral_axis_y)) / (neutral_axis_y)
             elif column.section.shape == "circular":
-                steel_strain = concrete_strain * (rebar_coords[1] - (column.section.diameter - neutral_axis_y)) / (neutral_axis_y - section_centroid[1])
+                steel_strain = concrete_strain * (rebar_coords[1] - (column.section.diameter - neutral_axis_y)) / (neutral_axis_y)
             elif column.section.shape == "arbitrary":
                 steel_strain = concrete_strain * (rebar_coords[1] - (column.section.top_of_section - neutral_axis_y)) / (neutral_axis_y - section_centroid[1])
         
@@ -1044,21 +1250,19 @@ def determine_envelope_value_minor_axis_positive(column, lambd, neutral_axis_x):
 
     if column.section.shape == 'rectangular':
         section_centroid = [column.section.b/2, column.section.h/2]
-        d_cz = min(lambd*neutral_axis_x, column.section.b)
-        if lambd*neutral_axis_x <= column.section.b:
-            in_section = True
-            lever_arm_concrete_x = neutral_axis_x * (1 - lambd/2)                                                # lever arm in mm
-            N_Rd += d_cz * column.section.h * column.concrete_properties.f_cd *1e-3                              # Add axial force from concrete in compression
-            M_Rdz += d_cz * column.section.h * column.concrete_properties.f_cd * lever_arm_concrete_x *1e-6      # Add moment from concrete in compression acting at a lever arm from the neutral axis
+        d_cx = min(lambd*neutral_axis_x, column.section.b)
+        lever_arm_concrete_x = neutral_axis_x  - d_cx/2                                                # lever arm in mm
+        N_Rd += d_cx * column.section.h * column.concrete_properties.f_cd *1e-3
+        if neutral_axis_x <= column.section.b:
+            in_section = True                              # Add axial force from concrete in compression
+            M_Rdz += d_cx * column.section.h * column.concrete_properties.f_cd * lever_arm_concrete_x *1e-6      # Add moment from concrete in compression acting at a lever arm from the neutral axis
         else:
-            in_section = False
-            lever_arm_concrete_x = neutral_axis_x - column.section.b/2                                           # lever arm in mm
-            N_Rd += d_cz * column.section.h * column.concrete_properties.f_cd *1e-3                              # Add axial force from concrete in compression
-            M_Rdz += d_cz * column.section.h * column.concrete_properties.f_cd * lever_arm_concrete_x *1e-6
+            in_section = False                                           # lever arm in mm
+            M_Rdz += d_cx * column.section.h * column.concrete_properties.f_cd * lever_arm_concrete_x *1e-6
     
     elif column.section.shape == 'circular':
         section_centroid = [column.section.diameter/2, column.section.diameter/2]
-        if lambd*neutral_axis_x <= column.section.diameter:
+        if neutral_axis_x <= column.section.diameter:
             in_section = True
             segment_area, centroid_x, lever_arm_concrete_x = integrate_part_of_circle(neutral_axis_x, column.section.diameter, lambd) # area in mm^2, centroid distance in mm
             N_Rd += segment_area*column.concrete_properties.f_cd *1e-3
@@ -1091,7 +1295,7 @@ def determine_envelope_value_minor_axis_positive(column, lambd, neutral_axis_x):
     if in_section == True:
         concrete_strain = column.concrete_properties.eps_cu2                                                    # Concrete strain if neutral axis within section
     else:
-        concrete_strain = column.concrete_properties.eps_c3                                                     # Concrete strain if neutral axis outside of the section. Note that this is the concrete strain at the centre of the section, therefore computing steel strains realtive to this should use sim triangle from centre of section
+        concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - section_centroid[1])                                                     # Concrete strain if neutral axis outside of the section. Note that this is the concrete strain at the centre of the section, therefore computing steel strains realtive to this should use sim triangle from centre of section
     
     for rebar_coords in column.reinforcement.arrangement:                                                       
         if in_section ==True:
@@ -1137,19 +1341,18 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
     if column.section.shape == 'rectangular':
         section_centroid = [column.section.b/2, column.section.h/2]
         d_cx = min(lambd*neutral_axis_x, column.section.b)
-        if (column.section.b - lambd*neutral_axis_x) > 0:
+        lever_arm_concrete_x = d_cx/2 - neutral_axis_x #lever arm in mm
+        N_Rd += d_cx * column.section.h * column.concrete_properties.f_cd *1e-3
+        if (column.section.b - neutral_axis_x) > 0:
             in_section = True
-            lever_arm_concrete_x = neutral_axis_x* (lambd/2 - 1)                        # lever arm from concrete to neutral axis in mm
-            N_Rd += d_cx * column.section.h * column.concrete_properties.f_cd *1e-3      # Axial component from concrete in compression
             M_Rdz += d_cx * column.section.h * column.concrete_properties.f_cd * lever_arm_concrete_x *1e-6
         else:
             in_section = False
-            lever_arm_concrete_x = column.section.b/2 - neutral_axis_x #lever arm in mm
-            N_Rd += d_cx * column.section.h * column.concrete_properties.f_cd *1e-3
             M_Rdz += d_cx * column.section.h * column.concrete_properties.f_cd * lever_arm_concrete_x *1e-6
+    
     elif column.section.shape == 'circular':
         section_centroid = [column.section.diameter/2, column.section.diameter/2]
-        if (column.section.diameter-lambd*neutral_axis_x) > 0:
+        if (column.section.diameter - neutral_axis_x) > 0:
             in_section = True
             segment_area, centroid_x, lever_arm_x = integrate_part_of_circle(neutral_axis_x, column.section.diameter, lambd) # area in mm^2, centroid distance in mm
             N_Rd += segment_area* column.concrete_properties.f_cd *1e-3
@@ -1172,7 +1375,8 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
                 area, centroid = compute_area_and_centroid(geom) #area in mm^2, centroid in mm from extreme compression fibre
                 if centroid[0] > (column.section.right_of_section - neutral_axis_x):
                     N_Rd += area * column.concrete_properties.f_cd *1e-3
-                    M_Rdz += (column.section.right_of_section - neutral_axis_x - centroid[0]) * area * column.concrete_properties.f_cd * 1e-6
+                    lever_arm_x = (column.section.right_of_section - neutral_axis_x - centroid[0])
+                    M_Rdz +=  lever_arm_x * area * column.concrete_properties.f_cd * 1e-6
     
     steel_strains = []
     steel_stresses = []
@@ -1181,7 +1385,7 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
     if in_section == True:
         concrete_strain = column.concrete_properties.eps_cu2
     else:
-        concrete_strain = column.concrete_properties.eps_c3
+        concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - section_centroid[0])
     
     for rebar_coords in column.reinforcement.arrangement:
         if in_section == True:
@@ -1223,7 +1427,6 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
     
     return N_Rd, M_Rdz, steel_stresses, steel_strains
 
-
 root = tk.Tk()
 root.title('LABS - RC Column design Tool')
 #root.iconbitmap(r'./assets/Logo.ico')
@@ -1231,3 +1434,4 @@ root.title('LABS - RC Column design Tool')
 #root.tk.call("set_theme", "dark")
 app = InputApp(root)
 root.mainloop()
+root.destroy()
