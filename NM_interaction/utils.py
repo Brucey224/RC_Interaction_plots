@@ -1,47 +1,27 @@
+from .classes import Concrete_Material
+import pandas as pd
+
+def get_concrete_properties(concrete_grade, gamma_c = 1.5, alpha_cc=0.85):
+    #extract material properties from database
+    df = pd.read_csv('concrete_grade_DB.csv')
+    f_ck = (df.loc[df["Material Property"] == 'f_ck [MPa]', concrete_grade].values[0]) #MPa
+    f_ck_cube = (df.loc[df["Material Property"] == 'f_ck_cube [MPa]', concrete_grade].values[0]) #MPa
+    f_cm = (df.loc[df["Material Property"] == 'f_cm [MPa]', concrete_grade].values[0]) #MPa
+    f_ctm = (df.loc[df["Material Property"] == 'f_ctm [MPa]', concrete_grade].values[0]) # MPa
+    f_ctk_0_05 = (df.loc[df["Material Property"] == 'f_ctk_0_05 [MPa]', concrete_grade].values[0]) #MPa
+    f_ctk_0_95 = (df.loc[df["Material Property"] == 'f_ctk_0_95 [MPa]', concrete_grade].values[0]) #MPa
+    E_cm = (df.loc[df["Material Property"] == 'E_cm [GPa]', concrete_grade].values[0]) #GPa
+    eps_c1 = (df.loc[df["Material Property"] == 'strain_c1 [%]', concrete_grade].values[0])*0.001
+    eps_cu1 = (df.loc[df["Material Property"] == 'strain_cu1 [%]', concrete_grade].values[0])*0.001
+    eps_cu2 = (df.loc[df["Material Property"] == 'strain_cu2 [%]', concrete_grade].values[0])*0.001
+    eps_c3 = (df.loc[df["Material Property"] == 'strain_c3 [%]', concrete_grade].values[0])*0.001
+    eps_cu3 = (df.loc[df["Material Property"] == 'strain_cu3 [%]', concrete_grade].values[0])*0.001
+    if f_ck <50:
+        eta = 1.0
+    else:
+        eta = 1.5
+    concrete_properties = Concrete_Material(concrete_grade, f_ck, f_ck_cube, f_cm, f_ctm, f_ctk_0_05, f_ctk_0_95, E_cm, eps_c1, eps_c3, eps_cu1, eps_cu2, eps_cu3, eta, gamma_c, alpha_cc)
+    return concrete_properties
 
 
-def compute_second_moment_area(polygon: Polygon):
-    c_x, c_y = polygon.centroid.x, polygon.centroid.y
-    coords = list(polygon.exterior.coords)
-    Ix = 0.0
-    Iy = 0.0
-    Ixy = 0.0
 
-    for i in range(len(coords) - 1):
-        x0, y0 = coords[i]
-        x1, y1 = coords[i + 1]
-
-        Ix += 1/12* (y0 - y1)*(x1+x0-2*c_x)*(x1**2+x0**2+2*c_x*(c_x-x0-x1))        
-        Iy += 1/12* (x0 - x1)*(y1+y0-2*c_y)*(y1**2+y0**2+2*c_y*(c_y-y0-y1))
-    return Ix, Iy
-
-
-def clip_polygon_at_y(polygon, y_value):
-    # Create a horizontal line at y_value
-    line = LineString([(-1e10, y_value), (1e10, y_value)])
-    # Split the polygon by the line
-    result = split(polygon, line)
-    #Return multiple geoemtry objects
-    return result.geoms
-
-# Function to clip polygon at a certain x value
-def clip_polygon_at_x(polygon, x_value):
-    # Create a horizontal line at x_value
-    line = LineString([(x_value, -1e10), (x_value, 1e10)])
-    # Split the polygon by the line
-    result = split(polygon, line)
-    #Return multiple geoemtry objects
-    return result.geoms
-
-def compute_area_and_centroid(polygon):
-    # Get the coordinates of the polygon
-    x, y = polygon.exterior.coords.xy
-    # Convert to numpy arrays for easy calculations
-    x = np.array(x)
-    y = np.array(y)
-    # Area Calculation
-    A = 0.5 * np.sum(y[:-1] * x[1:] - y[1:] * x[:-1])
-    # Centroid Calculation
-    Cx = np.sum((x[:-1] + x[1:]) * (y[:-1] * x[1:] - y[1:] * x[:-1])) / (6*A)
-    Cy = np.sum((y[:-1] + y[1:]) * (y[:-1] * x[1:] - y[1:] * x[:-1])) / (6*A)
-    return A, (Cx, Cy)

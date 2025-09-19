@@ -1,5 +1,6 @@
 import math
 from shapely.geometry import Polygon
+from .utils import compute_second_moment_area
 
 class Section():
     #Section class
