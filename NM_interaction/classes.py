@@ -1,6 +1,6 @@
 import math
 from shapely.geometry import Polygon
-from .utils import compute_second_moment_area
+from .geometryUtils import compute_second_moment_area
 
 class Section():
     #Section class
@@ -41,7 +41,6 @@ class Section():
             self.I_yy = abs(compute_second_moment_area(self.polygon) [1]) #mm**4
             self.i_y = (self.I_yy / self.A)**0.5
             self.i_z = (self.I_zz / self.A)**0.5
-
 
 class Column():
     #Column class

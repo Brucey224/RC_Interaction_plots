@@ -1,10 +1,20 @@
-from .classes import Concrete_Material
 from shapely.geometry import Polygon, LineString
 import pandas as pd
 import numpy as np
 from shapely.ops import split
 import math
 from scipy.integrate import quad
+
+def arrange_circular_bars(diameter, cover, radial_num_bars):
+    rebar_coords = []
+    if radial_num_bars > 0 and cover > 0:
+        radius = diameter / 2
+        theta = 2 * math.pi / radial_num_bars
+        bar_radius = radius - cover
+        x = [bar_radius * math.sin(theta * i) for i in range(radial_num_bars)]
+        y = [bar_radius * math.cos(theta * i) for i in range(radial_num_bars)]
+    rebar_coords = np.array([x,y]).T
+    return rebar_coords
 
 def arrange_rectangular_bars(b, h, cover, link_dia, phi, n_x, n_y):
     rebar_coords = []

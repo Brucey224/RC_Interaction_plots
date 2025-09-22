@@ -5,7 +5,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import math
-from .plotting import plot_rectangular_section, plot_circular_section, plot_arbitrary_section
+from .utils import get_concrete_properties, collect_user_input
+from .plotting import plot_rectangular_section, plot_circular_section, plot_arbitrary_section, plot_major_axis_failure_envelope, plot_minor_axis_failure_envelope
+from .codeChecks import check_slenderness
 
 class InputApp:
     def __init__(self, root):
@@ -32,7 +34,6 @@ class InputApp:
         self.concrete_dropdown = ttk.Combobox(self.root, values=options)
         self.concrete_dropdown.current()  # Set the default option (index 0)
         self.concrete_dropdown.grid(row=0, column=1, padx=10, pady=5, sticky="w")
-        self.concrete_dropdown.bind("<<ComboboxSelected>>", self.dropdown_selected)
 
         f_yk_label = ttk.Label(self.root, text="Reinforcement yield strength, f_yk:")
         f_yk_label.grid(row=1, column=0, padx=10, pady=5, sticky="e")
@@ -124,11 +125,8 @@ class InputApp:
         self.M_z_bottom_units = ttk.Label(self.lengthloads_frame, text="kNm")
         self.M_z_bottom_units.grid(row=5, column=5, padx=10, pady=5, sticky="w")
 
-        self.plot_major_axis_button = ttk.Button(self.root, text="Plot Major Axis Failure Envelope", command = self.plot_major_axis_failure_envelope)
-        self.plot_major_axis_button.grid(row=5, column=6, padx=10, pady=5, sticky="ew")
-
-        self.plot_minor_axis_button = ttk.Button(self.root, text="Plot Minor Axis Failure Envelope", command = self.plot_minor_axis_failure_envelope)
-        self.plot_minor_axis_button.grid(row=5, column=8, padx=10, pady=5, sticky="ew")
+        self.plot_results_button = ttk.Button(self.root, text="Plot Failure Envelopes", command = self.plot_envelopes)
+        self.plot_results_button.grid(row=5, column=6, padx=10, pady=5, sticky="ew")
 
         self.plot_frame = ttk.Frame(self.root)
         self.plot_frame.grid(row=6, column=6, columnspan=4, rowspan=10, padx=10, pady=10, sticky="nsew")
@@ -139,7 +137,7 @@ class InputApp:
         self.fig1, self.ax1 = plt.subplots(figsize=(4, 4))
         self.canvas1 = FigureCanvasTkAgg(self.fig1, master=self.plot1_frame)
         self.canvas1.get_tk_widget().pack()
-        self.ax1.set_title("Major Axis Plot")
+        self.ax1.set_title("Major Axis interaction Envelope")
         self.ax1.set_xlabel("M [kNm]")
         self.ax1.set_ylabel("N [kN]")
 
@@ -149,7 +147,7 @@ class InputApp:
         self.fig2, self.ax2 = plt.subplots(figsize=(4, 4))
         self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.plot2_frame)
         self.canvas2.get_tk_widget().pack()
-        self.ax2.set_title("Minor Axis Plot")
+        self.ax2.set_title("Minor Axis Interaction Envelope")
         self.ax2.set_xlabel("M [kNm]")
         self.ax2.set_ylabel("N [kN]")
 
@@ -168,9 +166,6 @@ class InputApp:
         # Initialize input fields for the default selection (rectangular)
         self.update_input_fields()
 
-    def dropdown_selected(self, event):
-        print(f"Selected option: {self.concrete_dropdown.get()}")
-
     def update_input_fields(self):
         # Clear any existing widgets in the input_frame
         for widget in self.input_frame.winfo_children():
@@ -187,52 +182,54 @@ class InputApp:
             self.create_arbitrary_inputs()
 
     def create_rectangular_inputs(self):
-        # Rectangular input fields
-        ttk.Label(self.input_frame, text="Section width, b:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.b_input = ttk.Entry(self.input_frame)
-        self.b_input.insert(0, "500")
-        self.b_input.grid(row=0, column=2, padx=5, pady=5)
-        self.b_input.bind("<Return>", self.plot_rectangular_section)
-        self.b_input.bind("<FocusOut>", self.plot_rectangular_section)
-        ttk.Label(self.input_frame, text="mm").grid(row=0, column=3, padx=5, pady=5, sticky="w")
-        
-        ttk.Label(self.input_frame, text="Section height, h:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.h_input = ttk.Entry(self.input_frame)
-        self.h_input.insert(0, "500")
-        self.h_input.grid(row=1, column=2, padx=5, pady=5)
-        self.h_input.bind("<Return>", self.plot_rectangular_section)
-        self.h_input.bind("<FocusOut>", self.plot_rectangular_section)
-        ttk.Label(self.input_frame, text="mm").grid(row=1, column=3, padx=5, pady=5, sticky="w")
-        
-        ttk.Label(self.input_frame, text="Cover:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        self.cover_input = ttk.Entry(self.input_frame)
-        self.cover_input.insert(0, "25")
-        self.cover_input.grid(row=2, column=2, padx=5, pady=5)
-        self.cover_input.bind("<Return>",self.plot_rectangular_section)
-        self.cover_input.bind("<FocusOut>",self.plot_rectangular_section)
-        ttk.Label(self.input_frame, text="mm").grid(row=2, column=3, padx=5, pady=5, sticky="w")
-
-        ttk.Label(self.input_frame, text="Number of bars distributed along the width of the column\nn_x:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        self.n_x_input = ttk.Entry(self.input_frame)
-        self.n_x_input.grid(row=3, column=2, padx=5, pady=5)
-        self.n_x_input.bind("<Return>",self.plot_rectangular_section)
-        self.n_x_input.bind("<FocusOut>",self.plot_rectangular_section)
-        ttk.Label(self.input_frame, text="#").grid(row=3, column=3, padx=5, pady=5, sticky="w")
-
-        ttk.Label(self.input_frame, text="Number of bars distributed along the height of the column\n n_y:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        self.n_y_input = ttk.Entry(self.input_frame)
-        self.n_y_input.grid(row=4, column=2, padx=5, pady=5)                           
-        self.n_y_input.bind("<Return>",plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input))
-        self.n_y_input.bind("<FocusOut>",plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input))
-
-        ttk.Label(self.input_frame, text="#").grid(row=4, column=3, padx=5, pady=5, sticky="w")
-
         self.fig0, self.ax0 = plt.subplots(figsize=(3,3))
         self.canvas0 = FigureCanvasTkAgg(self.fig0, master=self.input_frame)
         self.canvas0.get_tk_widget().grid(row=5, column=0, columnspan=4, padx=5, pady=5)
         self.fig0.subplots_adjust(left=0.125, right=0.9, top=0.95, bottom=0.1)
         #self.ax0.set_axis_on()
         self.ax0.grid(True)
+
+        # Rectangular input fields
+        ttk.Label(self.input_frame, text="Section width, b:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.b_input = ttk.Entry(self.input_frame)
+        self.b_input.insert(0, "500")
+        self.b_input.grid(row=0, column=2, padx=5, pady=5)
+        ttk.Label(self.input_frame, text="mm").grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        
+        ttk.Label(self.input_frame, text="Section height, h:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.h_input = ttk.Entry(self.input_frame)
+        self.h_input.insert(0, "500")
+        self.h_input.grid(row=1, column=2, padx=5, pady=5)
+        ttk.Label(self.input_frame, text="mm").grid(row=1, column=3, padx=5, pady=5, sticky="w")
+        
+        ttk.Label(self.input_frame, text="Cover:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.cover_input = ttk.Entry(self.input_frame)
+        self.cover_input.insert(0, "25")
+        self.cover_input.grid(row=2, column=2, padx=5, pady=5)
+        ttk.Label(self.input_frame, text="mm").grid(row=2, column=3, padx=5, pady=5, sticky="w")
+
+        ttk.Label(self.input_frame, text="Number of bars distributed along the width of the column\nn_x:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.n_x_input = ttk.Entry(self.input_frame)
+        self.n_x_input.grid(row=3, column=2, padx=5, pady=5)
+        ttk.Label(self.input_frame, text="#").grid(row=3, column=3, padx=5, pady=5, sticky="w")
+
+        ttk.Label(self.input_frame, text="Number of bars distributed along the height of the column\n n_y:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        self.n_y_input = ttk.Entry(self.input_frame)
+        self.n_y_input.grid(row=4, column=2, padx=5, pady=5)                           
+        
+        ## BIND FUNCTIONS TO UPDATE PLOT WHEN VALUES ARE CHANGED
+        self.b_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.b_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.h_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.h_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.cover_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.cover_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.n_x_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.n_x_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.n_y_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        self.n_y_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        ttk.Label(self.input_frame, text="#").grid(row=4, column=3, padx=5, pady=5, sticky="w")
+
         self.canvas0.draw()
 
     def create_circular_inputs(self):
@@ -261,80 +258,6 @@ class InputApp:
         self.fig0.subplots_adjust(left=0.125, right=0.9, top=0.95, bottom=0.1)
         #self.ax0.set_axis_on()
         self.ax0.grid(True)
-        self.canvas0.draw()
-
-    def plot_rectangular_section(self, event=None):
-        self.ax0.clear()
-        rect = Rectangle((0,0), float(self.b_input.get()), float(self.h_input.get()), facecolor="blue", edgecolor="black", alpha=0.5)
-        self.ax0.add_patch(rect)
-        self.ax0.set_xlim(0, 1.1*max(float(self.b_input.get()), float(self.h_input.get())))
-        self.ax0.set_ylim(0, 1.1*max(float(self.b_input.get()), float(self.h_input.get())))
-        rebar_coords = self.arrange_rectangular_bars()
-        self.ax0.scatter(rebar_coords[:,0], rebar_coords[:,1], color = "red")
-        # Draw the updated canvas
-        self.ax0.grid(True)
-        self.ax0.set_axis_on()
-        self.canvas0.draw()
-        
-    def arrange_rectangular_bars(self):
-        rebar_coords = []
-        cover = float(self.cover_input.get())
-        b = float(self.b_input.get())
-        h = float(self.h_input.get())
-        link_dia = float(self.link_dia_entry.get())
-        phi = float(self.bar_dia_entry.get())
-        n_x = int(self.n_x_input.get())
-        n_y = int(self.n_y_input.get())
-        spacing_x = float((b - 2*cover - 2*link_dia - phi) / (n_x - 1))
-        spacing_y = float((h - 2*cover - 2*link_dia - phi) / (n_y - 1))
-        
-        #create rebar in top + bottom layer
-        for i in range(n_x):
-            x1 = cover + link_dia + phi/2 + i*spacing_x
-            y1 = cover + link_dia + phi/2
-            rebar_coords.append([x1, y1])
-            x2 = x1
-            y2 = h - cover - link_dia - phi/2
-            rebar_coords.append([x2,y2])
-        # create side bars
-        for j in range(n_y-2):
-            x1 = cover + link_dia + phi/2
-            y1 = cover + link_dia + phi/2 + spacing_y * (j+1)
-            rebar_coords.append([x1, y1])
-            x2 = b - cover - link_dia - phi/2
-            y2 = y1
-            rebar_coords.append([x2,y2])
-        return np.array(rebar_coords)
-
-    def plot_circular_section(self, event=None):
-        # Create a filled circle
-        radius = float(self.diameter_entry.get())/2
-        circle = Circle([0,0], radius, color='blue', alpha=0.5)
-        self.ax0.clear()
-        # Add the circle to the axis
-        self.ax0.add_patch(circle)
-        
-        # Set limits so the circle is properly shown
-        self.ax0.set_xlim(- 1.1*float(self.diameter_entry.get())/2 , 1.1*float(self.diameter_entry.get())/2 )
-        self.ax0.set_ylim( - 1.1*float(self.diameter_entry.get())/2, 1.1*float(self.diameter_entry.get())/2 )
-        
-        if self.radial_num_bars_input.get() and float(self.radial_num_bars_input.get()) > 0 and self.diameter_entry.get() and float(self.diameter_entry.get()) > 0 and self.cover_input.get() and float(self.cover_input.get()) > 0:
-            theta = 2*math.pi / float(self.radial_num_bars_input.get())
-            bar_radius = float(self.diameter_entry.get())/2 - float(self.cover_input.get())
-            x = []
-            y = []
-            for bar in range(int(self.radial_num_bars_input.get())): 
-                x.append(bar_radius*math.sin(theta*bar))
-                y.append(bar_radius*math.cos(theta*bar))
-            self.ax0.scatter(x,y, color = "red")    
-
-        # Set equal aspect ratio to ensure the circle is round
-        self.ax0.set_aspect('equal', 'box')
-        self.fig0.subplots_adjust(left=0.125, right=0.9, top=0.95, bottom=0.1)
-
-        # Draw the updated canvas
-        self.ax0.grid(True)
-        self.ax0.set_axis_on()
         self.canvas0.draw()
 
     def create_arbitrary_inputs(self):
@@ -496,3 +419,34 @@ class InputApp:
         self.bar_list.clear()
         self.update_bar_display()
         self.update_section_plot()
+
+    def plot_envelopes (self):
+        if self.shape_var.get() == "rectangular":
+            N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
+                                                                                        N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
+                                                                                        concrete_grade_entry = self.concrete_dropdown, 
+                                                                                        L_effy_entry = self.L_Effy_entry, L_effz_entry = self.L_effz_entry, 
+                                                                                        f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
+                                                                                        bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
+                                                                                        h_input = self.h_input, b_input = self.b_input, n_x_input = self.n_x_input, n_y_input = self.n_y_input)
+        if self.shape_var.get() == "circular":
+            N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
+                                                                                        N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
+                                                                                        concrete_grade_entry = self.concrete_dropdown, 
+                                                                                        L_effy_entry = self.L_Effy_entry, L_effz_entry = self.L_effz_entry, 
+                                                                                        f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
+                                                                                        bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
+                                                                                        diameter_entry = self.diameter_entry, radial_num_bars = self.radial_num_bars_input)
+        if self.shape_var.get() == "arbitrary":
+            N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
+                                                                                        N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
+                                                                                        concrete_grade_entry = self.concrete_dropdown, 
+                                                                                        L_effy_entry = self.L_Effy_entry, L_effz_entry = self.L_effz_entry, 
+                                                                                        f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
+                                                                                        bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
+                                                                                        coord_list = self.coord_list,bar_list =  self.bar_list)
+        My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom)
+        plot_major_axis_failure_envelope(self.ax1, self.canvas1, column, N_Ed, M_Edy, My_02)
+        plot_minor_axis_failure_envelope(self.ax2, self.canvas2, column, N_Ed, M_Edz, Mz_02)
+
+
