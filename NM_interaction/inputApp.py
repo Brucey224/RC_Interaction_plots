@@ -73,12 +73,12 @@ class InputApp:
         self.lengthloads_frame = ttk.Frame(self.root)
         self.lengthloads_frame.grid(row=0, column=6, rowspan=5, columnspan=5, padx=0, pady=0, sticky="nsew")
 
-        self.L_Effy_label = ttk.Label(self.lengthloads_frame, text="L_eff,y:")
-        self.L_Effy_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
-        self.L_Effy_entry = ttk.Entry(self.lengthloads_frame)
-        self.L_Effy_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-        self.L_Effy_units = ttk.Label(self.lengthloads_frame, text="m")
-        self.L_Effy_units.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+        self.L_effy_label = ttk.Label(self.lengthloads_frame, text="L_eff,y:")
+        self.L_effy_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
+        self.L_effy_entry = ttk.Entry(self.lengthloads_frame)
+        self.L_effy_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        self.L_effy_units = ttk.Label(self.lengthloads_frame, text="m")
+        self.L_effy_units.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
         self.L_effz_label = ttk.Label(self.lengthloads_frame, text="L_eff,z:")
         self.L_effz_label.grid(row=0, column=3, padx=10, pady=5, sticky="e")
@@ -237,20 +237,20 @@ class InputApp:
         ttk.Label(self.input_frame, text="Diameter, d:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.diameter_entry = ttk.Entry(self.input_frame)
         self.diameter_entry.grid(row=0, column=1, padx=5, pady=5)
-        self.diameter_entry.bind("<Return>", self.plot_circular_section)  # Update plot on pressing Enter
-        self.diameter_entry.bind("<FocusOut>", self.plot_circular_section)  # Update plot on leaving the field
+        self.diameter_entry.bind("<Return>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))  # Update plot on pressing Enter
+        self.diameter_entry.bind("<FocusOut>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))  # Update plot on leaving the field
         
         ttk.Label(self.input_frame, text="Number of bars:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
         self.radial_num_bars_input = ttk.Entry(self.input_frame)
         self.radial_num_bars_input.grid(row=1, column=1, padx=5, pady=5)
-        self.radial_num_bars_input.bind("<Return>", self.plot_circular_section)
-        self.radial_num_bars_input.bind("<FocusOut>",self.plot_circular_section)
+        self.radial_num_bars_input.bind("<Return>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
+        self.radial_num_bars_input.bind("<FocusOut>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
         
         ttk.Label(self.input_frame, text="Cover:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
         self.cover_input = ttk.Entry(self.input_frame)
         self.cover_input.grid(row=2, column=1, padx=5, pady=5)
-        self.cover_input.bind("<Return>", self.plot_circular_section)
-        self.cover_input.bind("<FocusOut>", self.plot_circular_section)
+        self.cover_input.bind("<Return>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
+        self.cover_input.bind("<FocusOut>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
 
         self.fig0, self.ax0 = plt.subplots(figsize=(3,3))
         self.canvas0 = FigureCanvasTkAgg(self.fig0, master=self.input_frame)
@@ -425,7 +425,7 @@ class InputApp:
             N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
                                                                                         N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
                                                                                         concrete_grade_entry = self.concrete_dropdown, 
-                                                                                        L_effy_entry = self.L_Effy_entry, L_effz_entry = self.L_effz_entry, 
+                                                                                        L_effy_entry = self.L_effy_entry, L_effz_entry = self.L_effz_entry, 
                                                                                         f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
                                                                                         bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
                                                                                         h_input = self.h_input, b_input = self.b_input, n_x_input = self.n_x_input, n_y_input = self.n_y_input)
@@ -433,7 +433,7 @@ class InputApp:
             N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
                                                                                         N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
                                                                                         concrete_grade_entry = self.concrete_dropdown, 
-                                                                                        L_effy_entry = self.L_Effy_entry, L_effz_entry = self.L_effz_entry, 
+                                                                                        L_effy_entry = self.L_effy_entry, L_effz_entry = self.L_effz_entry, 
                                                                                         f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
                                                                                         bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
                                                                                         diameter_entry = self.diameter_entry, radial_num_bars = self.radial_num_bars_input)
@@ -441,7 +441,7 @@ class InputApp:
             N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
                                                                                         N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
                                                                                         concrete_grade_entry = self.concrete_dropdown, 
-                                                                                        L_effy_entry = self.L_Effy_entry, L_effz_entry = self.L_effz_entry, 
+                                                                                        L_effy_entry = self.L_effy_entry, L_effz_entry = self.L_effz_entry, 
                                                                                         f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
                                                                                         bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
                                                                                         coord_list = self.coord_list,bar_list =  self.bar_list)

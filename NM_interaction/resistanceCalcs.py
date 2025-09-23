@@ -379,3 +379,7 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
         M_Rdz += N_Rd*(section_centroid[0] - (column.section.right_of_section - neutral_axis_x)) * 1e-3
     
     return N_Rd, M_Rdz, steel_stresses, steel_strains
+
+def determine_utilisation(N_Ed,M_Edy,M_Edz,column):
+    pass
+

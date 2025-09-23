@@ -29,9 +29,12 @@ def plot_rectangular_section(ax, canvas, b_input, h_input, cover_input, link_dia
     except ValueError as e:
         print(f"Invalid Input: {e}")
 
-def plot_circular_section(ax, canvas, diameter, radial_num_bars, cover, event=None):
+def plot_circular_section(ax, canvas, diameter_input, radial_num_bars_input, cover_input, event=None):
     ## Plot a circular section with reinforcement bars
     ax.clear()
+    diameter = float(diameter_input.get())
+    radial_num_bars = int(radial_num_bars_input.get())
+    cover = float(cover_input.get())
     radius = diameter / 2
     circle = Circle([0, 0], radius, color="blue", alpha=0.5)
     ax.add_patch(circle)
