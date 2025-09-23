@@ -8,3 +8,4 @@ Interactive GUI developed with tkinter
 To install packages, run:
 '''bash
 pip install -r [requirements.txt]
+
