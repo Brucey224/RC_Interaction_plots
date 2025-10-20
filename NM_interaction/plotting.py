@@ -6,18 +6,12 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from .resistanceCalcs import determine_envelope_value_major_axis_negative, determine_envelope_value_major_axis_positive, determine_envelope_value_minor_axis_negative, determine_envelope_value_minor_axis_positive
 from .geometryUtils import arrange_rectangular_bars, arrange_circular_bars, rotate_points_3d
 
-def plot_rectangular_section(ax, canvas, b_input, h_input, cover_input, link_dia_input, bar_dia_input, n_x_input, n_y_input, event=None):
+def plot_rectangular_section(ax, canvas, b, h, cover, link_dia, bar_dia, n_x, n_y, event=None):
     ## Plot a rectangular section with reinforcement bars
     try:
-        b = float(b_input.get())
-        h = float(h_input.get())
-        cover = float(cover_input.get())
-        link_dia = float(link_dia_input.get())
-        bar_dia = float(bar_dia_input.get())
-        n_x = int(n_x_input.get())
-        n_y = int(n_y_input.get())
         ax.clear()
-        rebar_coords = arrange_rectangular_bars(b, h, cover, link_dia, bar_dia, n_x, n_y)
+        if n_x and n_y:
+            rebar_coords = arrange_rectangular_bars(b, h, cover, link_dia, bar_dia, n_x, n_y)
         rect = Rectangle((0, 0), b, h, facecolor="blue", edgecolor="black", alpha=0.5)
         ax.add_patch(rect)
         ax.set_xlim(0, 1.1 * max(b, h))
@@ -29,12 +23,9 @@ def plot_rectangular_section(ax, canvas, b_input, h_input, cover_input, link_dia
     except ValueError as e:
         print(f"Invalid Input: {e}")
 
-def plot_circular_section(ax, canvas, diameter_input, radial_num_bars_input, cover_input, event=None):
+def plot_circular_section(ax, canvas, diameter, radial_num_bars, cover, event=None):
     ## Plot a circular section with reinforcement bars
     ax.clear()
-    diameter = float(diameter_input.get())
-    radial_num_bars = int(radial_num_bars_input.get())
-    cover = float(cover_input.get())
     radius = diameter / 2
     circle = Circle([0, 0], radius, color="blue", alpha=0.5)
     ax.add_patch(circle)

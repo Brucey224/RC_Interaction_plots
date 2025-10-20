@@ -8,12 +8,36 @@ import math
 from .utils import get_concrete_properties, collect_user_input
 from .plotting import plot_rectangular_section, plot_circular_section, plot_arbitrary_section, plot_major_axis_failure_envelope, plot_minor_axis_failure_envelope
 from .codeChecks import check_slenderness
+from .classes import Column
 
 class InputApp:
     def __init__(self, root):
         self.root = root
         self.root.title("RC Column Designer")
         
+        self.slenderness_values = {
+            "slenderness_x": None,
+            "slenderness_y": None,
+            "slenderness_ratio_x": None,
+            "slenderness_ratio_y": None,
+        }
+        self.shape = None
+        self.b = None
+        self.h = None
+        self.diameter = None
+        self.cover = None
+        self.n_x = None
+        self.n_y = None
+        self.radial_num_bars = None
+        self.concrete_grade = None
+        self.f_yk = None
+        self.E_s = None
+        self.link_dia = None
+        self.bar_dia = None
+        self.L_effy = None
+        self.L_effz = None
+        self.N_Ed = None
+
         # Radio Button Variable
         self.shape_var = tk.StringVar(value="rectangular")
         
@@ -22,6 +46,93 @@ class InputApp:
 
         # Create the main layout
         self.create_main_layout()
+
+    def update_variables_and_plot(self, event):
+        """
+        Update a class attribute dynamically.
+        """
+        # Get the value from the widget that triggered the event
+        self.concrete_grade = self.concrete_dropdown.get()
+        self.f_yk = self.f_yk_entry.get()
+        self.E_s = self.E_s_entry.get()
+        self.link_dia = self.link_dia_entry.get()
+        self.bar_dia = self.bar_dia_entry.get()
+        self.L_effy = self.L_effy_entry.get()
+        self.L_effz = self.L_effz_entry.get()
+        self.N_Ed = self.N_Ed_entry.get()
+        self.M_y_top = self.M_y_top_entry.get()
+        self.M_y_bottom = self.M_y_bottom_entry.get()
+        self.M_z_top = self.M_z_top_entry.get()
+        self.M_z_bottom = self.M_z_bottom_entry.get()
+        self.shape = self.shape_var.get()
+        if self.shape == "rectangular":
+            self.b = self.b_entry.get() if hasattr(self.b_entry) else None
+            self.h = self.h_entry.get() if hasattr(self.h_entry) else None
+            self.n_x = self.n_x_entry.get() if hasattr(self.n_x_entry) else None
+            self.n_y = self.n_y_entry.get() if hasattr(self.n_y_entry) else None
+        elif self.shape == "circular":
+            self.diameter = self.diameter_entry.get() if hasattr(self.diameter_entry) else None
+            self.cover = self.cover_entry.get() if hasattr(self.cover_entry) else None
+            self.radial_num_bars = self.radial_num_bars_input.get() if hasattr(self.radial_num_bars_input) else None
+        
+        type_mapping = {
+            "shape": str,
+            "b": float,
+            "h": float,
+            "diameter": float,
+            "cover": float,
+            "n_x": int,
+            "n_y": int,
+            "radial_num_bars": int,
+            "concrete_grade": str,
+            "f_yk": float,
+            "E_s": float,
+            "link_dia": float,
+            "bar_dia": float,
+            "L_effy": float,
+            "L_effz": float,
+            "N_Ed": float,
+            "M_y_top": float,
+            "M_y_bottom": float,
+            "M_z_top": float,
+            "M_z_bottom": float
+        }
+        
+        # Convert values to their expected types
+        for attribute in type_mapping:
+            value = getattr(self, attribute, None)
+            if value is not None:
+                try:
+                    converted_value = type_mapping[attribute](value)
+                    setattr(self, attribute, converted_value)
+                    print(f"Updated {attribute} to {converted_value}")  # Debugging
+                except (ValueError, TypeError):
+                    print(f"Failed to convert {attribute} to {type_mapping[attribute].__name__}. Value: {value}")
+
+        # Call the appropriate plotting function based on the shape
+        shape = self.shape_var.get()
+        if shape == "rectangular":
+            plot_rectangular_section(
+                self.ax0,
+                self.canvas0,
+                self.b,
+                self.h,
+                self.cover,
+                self.link_dia,
+                self.bar_dia,
+                self.n_x,
+                self.n_y,
+            )
+        elif shape == "circular":
+            plot_circular_section(
+                self.ax0,
+                self.canvas0,
+                self.diameter,
+                self.radial_num_bars,
+                self.cover,
+            )
+        elif shape == "arbitrary":
+            self.update_section_plot()  # For arbitrary shapes, use the existing method
 
     def create_main_layout(self):
         # Options input for concrete grade
@@ -64,8 +175,8 @@ class InputApp:
         ttk.Label(self.root, text="mm").grid(row=4, column=2, padx=10, pady=5, sticky="w")
 
         # Section shape label
-        shape_label = ttk.Label(self.root, text="Section shape:")
-        shape_label.grid(row=5, column=0, padx=10, pady=10, sticky="w")
+        self.shape_label = ttk.Label(self.root, text="Section shape:")
+        self.shape_label.grid(row=5, column=0, padx=10, pady=10, sticky="w")
 
         # --- Add Right-Hand Plots below the buttons ---
         # Create a frame for the two graphs below the buttons
@@ -159,6 +270,19 @@ class InputApp:
         for shape in shapes:
             ttk.Radiobutton(self.radio_frame, text=shape.capitalize(), value=shape, variable=self.shape_var, command=self.update_input_fields).pack(side="left", padx=5)
 
+        # Bind the "f_yk" input field
+        self.f_yk_entry.bind("<Return>", self.update_variables_and_plot)
+        self.f_yk_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "E_s" input field
+        self.E_s_entry.bind("<Return>", self.update_variables_and_plot)
+        self.E_s_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "bar diameter" entry field
+        self.bar_dia_entry.bind("<Return>", self.update_variables_and_plot)
+        self.bar_dia_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "link diameter" entry field
+        self.link_dia_entry.bind("<Return>", self.update_variables_and_plot)
+        self.link_dia_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        
         # Create frame for dynamic input fields
         self.input_frame = ttk.Frame(self.root)
         self.input_frame.grid(row=6, column=0, columnspan = 3, padx=5,  pady=10)
@@ -191,43 +315,48 @@ class InputApp:
 
         # Rectangular input fields
         ttk.Label(self.input_frame, text="Section width, b:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.b_input = ttk.Entry(self.input_frame)
-        self.b_input.insert(0, "500")
-        self.b_input.grid(row=0, column=2, padx=5, pady=5)
+        self.b_entry = ttk.Entry(self.input_frame)
+        self.b_entry.insert(0, "500")
+        self.b_entry.grid(row=0, column=2, padx=5, pady=5)
         ttk.Label(self.input_frame, text="mm").grid(row=0, column=3, padx=5, pady=5, sticky="w")
         
         ttk.Label(self.input_frame, text="Section height, h:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.h_input = ttk.Entry(self.input_frame)
-        self.h_input.insert(0, "500")
-        self.h_input.grid(row=1, column=2, padx=5, pady=5)
+        self.h_entry = ttk.Entry(self.input_frame)
+        self.h_entry.insert(0, "500")
+        self.h_entry.grid(row=1, column=2, padx=5, pady=5)
         ttk.Label(self.input_frame, text="mm").grid(row=1, column=3, padx=5, pady=5, sticky="w")
         
         ttk.Label(self.input_frame, text="Cover:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        self.cover_input = ttk.Entry(self.input_frame)
-        self.cover_input.insert(0, "25")
-        self.cover_input.grid(row=2, column=2, padx=5, pady=5)
+        self.cover_entry = ttk.Entry(self.input_frame)
+        self.cover_entry.insert(0, "25")
+        self.cover_entry.grid(row=2, column=2, padx=5, pady=5)
         ttk.Label(self.input_frame, text="mm").grid(row=2, column=3, padx=5, pady=5, sticky="w")
 
         ttk.Label(self.input_frame, text="Number of bars distributed along the width of the column\nn_x:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        self.n_x_input = ttk.Entry(self.input_frame)
-        self.n_x_input.grid(row=3, column=2, padx=5, pady=5)
+        self.n_x_entry = ttk.Entry(self.input_frame)
+        self.n_x_entry.grid(row=3, column=2, padx=5, pady=5)
         ttk.Label(self.input_frame, text="#").grid(row=3, column=3, padx=5, pady=5, sticky="w")
 
         ttk.Label(self.input_frame, text="Number of bars distributed along the height of the column\n n_y:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        self.n_y_input = ttk.Entry(self.input_frame)
-        self.n_y_input.grid(row=4, column=2, padx=5, pady=5)                           
+        self.n_y_entry = ttk.Entry(self.input_frame)
+        self.n_y_entry.grid(row=4, column=2, padx=5, pady=5)                           
         
-        ## BIND FUNCTIONS TO UPDATE PLOT WHEN VALUES ARE CHANGED
-        self.b_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.b_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.h_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.h_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.cover_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.cover_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.n_x_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.n_x_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.n_y_input.bind("<Return>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
-        self.n_y_input.bind("<FocusOut>", lambda event: plot_rectangular_section(self.ax0, self.canvas0, self.b_input, self.h_input, self.cover_input, self.link_dia_entry, self.bar_dia_entry, self.n_x_input, self.n_y_input))
+        ## BIND FUNCTIONS TO UPDATE VARIABLES AND PLOT WHEN VALUES ARE CHANGED
+        # Bind the "b" entry field
+        self.b_entry.bind("<Return>", self.update_variables_and_plot)
+        self.b_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "h" entry field
+        self.h_entry.bind("<Return>", self.update_variables_and_plot)
+        self.h_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "cover" entry field
+        self.cover_entry.bind("<Return>", self.update_variables_and_plot)
+        self.cover_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "n_x" entry field
+        self.n_x_entry.bind("<Return>", self.update_variables_and_plot)
+        self.n_x_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "n_y" entry field
+        self.n_y_entry.bind("<Return>", self.update_variables_and_plot)
+        self.n_y_entry.bind("<FocusOut>", self.update_variables_and_plot)
         ttk.Label(self.input_frame, text="#").grid(row=4, column=3, padx=5, pady=5, sticky="w")
 
         self.canvas0.draw()
@@ -237,20 +366,24 @@ class InputApp:
         ttk.Label(self.input_frame, text="Diameter, d:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.diameter_entry = ttk.Entry(self.input_frame)
         self.diameter_entry.grid(row=0, column=1, padx=5, pady=5)
-        self.diameter_entry.bind("<Return>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))  # Update plot on pressing Enter
-        self.diameter_entry.bind("<FocusOut>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))  # Update plot on leaving the field
         
         ttk.Label(self.input_frame, text="Number of bars:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.radial_num_bars_input = ttk.Entry(self.input_frame)
-        self.radial_num_bars_input.grid(row=1, column=1, padx=5, pady=5)
-        self.radial_num_bars_input.bind("<Return>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
-        self.radial_num_bars_input.bind("<FocusOut>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
+        self.radial_num_bars_entry = ttk.Entry(self.input_frame)
+        self.radial_num_bars_entry.grid(row=1, column=1, padx=5, pady=5)
         
         ttk.Label(self.input_frame, text="Cover:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        self.cover_input = ttk.Entry(self.input_frame)
-        self.cover_input.grid(row=2, column=1, padx=5, pady=5)
-        self.cover_input.bind("<Return>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
-        self.cover_input.bind("<FocusOut>", lambda event:plot_circular_section(self.ax0,self.canvas0, self.diameter_entry,self.radial_num_bars_input, self.cover_input))
+        self.cover_entry = ttk.Entry(self.input_frame)
+        self.cover_entry.grid(row=2, column=1, padx=5, pady=5)
+        
+        # Bind the "diameter" entry field
+        self.diameter_entry.bind("<Return>", self.update_variables_and_plot)
+        self.diameter_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "radial_num_bars" entry field
+        self.radial_num_bars_entry.bind("<Return>", self.update_variables_and_plot)
+        self.radial_num_bars_entry.bind("<FocusOut>", self.update_variables_and_plot)
+        # Bind the "cover" entry field
+        self.cover_entry.bind("<Return>", self.update_variables_and_plot)
+        self.cover_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.fig0, self.ax0 = plt.subplots(figsize=(3,3))
         self.canvas0 = FigureCanvasTkAgg(self.fig0, master=self.input_frame)
@@ -263,10 +396,10 @@ class InputApp:
     def create_arbitrary_inputs(self):
         # Arbitrary input fields
         ttk.Label(self.input_frame, text="Input vertices for section boundary [mm]:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.x_input = ttk.Entry(self.input_frame, width=10)
-        self.x_input.grid(row=0, column=1, padx=5, pady=5)
-        self.y_input = ttk.Entry(self.input_frame, width=10)
-        self.y_input.grid(row=0, column=2, padx=5, pady=5)
+        self.vertex_x_input = ttk.Entry(self.input_frame, width=10)
+        self.vertex_x_input.grid(row=0, column=1, padx=5, pady=5)
+        self.vertex_y_input = ttk.Entry(self.input_frame, width=10)
+        self.vertex_y_input.grid(row=0, column=2, padx=5, pady=5)
         self.add_vertex_button = ttk.Button(self.input_frame, text="Add boundary point", command=self.add_vertex)
         self.add_vertex_button.grid(row=0, column=3, padx=5, pady=5)
         self.close_boundary_button = ttk.Button(self.input_frame, text="Close section boundary", command=self.close_boundary)
@@ -322,8 +455,8 @@ class InputApp:
     def add_vertex(self):
         # Add coordinates to the list and display them
         try:
-            x = float(self.x_input.get())
-            y = float(self.y_input.get())
+            x = float(self.vertex_x_input.get())
+            y = float(self.vertex_y_input.get())
             self.coord_list.append([x, y])
             
             # Update the list of coordiantes
@@ -332,8 +465,8 @@ class InputApp:
             self.update_section_plot()
             
             # Clear the input fields
-            self.x_input.delete(0, tk.END)
-            self.y_input.delete(0, tk.END)
+            self.vertex_x_input.delete(0, tk.END)
+            self.vertex_y_input.delete(0, tk.END)
         except ValueError:
             # Handle invalid inputs
             print("Invalid input. Please enter numerical values.")
@@ -421,32 +554,9 @@ class InputApp:
         self.update_section_plot()
 
     def plot_envelopes (self):
-        if self.shape_var.get() == "rectangular":
-            N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
-                                                                                        N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
-                                                                                        concrete_grade_entry = self.concrete_dropdown, 
-                                                                                        L_effy_entry = self.L_effy_entry, L_effz_entry = self.L_effz_entry, 
-                                                                                        f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
-                                                                                        bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
-                                                                                        h_input = self.h_input, b_input = self.b_input, n_x_input = self.n_x_input, n_y_input = self.n_y_input)
-        if self.shape_var.get() == "circular":
-            N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
-                                                                                        N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
-                                                                                        concrete_grade_entry = self.concrete_dropdown, 
-                                                                                        L_effy_entry = self.L_effy_entry, L_effz_entry = self.L_effz_entry, 
-                                                                                        f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
-                                                                                        bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
-                                                                                        diameter_entry = self.diameter_entry, radial_num_bars = self.radial_num_bars_input)
-        if self.shape_var.get() == "arbitrary":
-            N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, column = collect_user_input(self.shape_var, 
-                                                                                        N_Ed_entry = self.N_Ed_entry, M_y_top_entry = self.M_y_top_entry, M_y_bottom_entry = self.M_y_bottom_entry, M_z_top_entry = self.M_z_top_entry, M_z_bottom_entry = self.M_z_bottom_entry, 
-                                                                                        concrete_grade_entry = self.concrete_dropdown, 
-                                                                                        L_effy_entry = self.L_effy_entry, L_effz_entry = self.L_effz_entry, 
-                                                                                        f_yk_entry=self.f_yk_entry, E_s_entry=self.E_s_entry, 
-                                                                                        bar_dia_entry = self.bar_dia_entry, link_dia_entry = self.link_dia_entry, cover_entry = self.cover_input, 
-                                                                                        coord_list = self.coord_list,bar_list =  self.bar_list)
-        My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom)
-        plot_major_axis_failure_envelope(self.ax1, self.canvas1, column, N_Ed, M_Edy, My_02)
-        plot_minor_axis_failure_envelope(self.ax2, self.canvas2, column, N_Ed, M_Edz, Mz_02)
+        column = Column()    
+        My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, self.N_Ed, self.M_y_top, self.M_y_bottom, self.M_z_top, self.M_z_bottom)
+        plot_major_axis_failure_envelope(self.ax1, self.canvas1, column, self.N_Ed, M_Edy, My_02)
+        plot_minor_axis_failure_envelope(self.ax2, self.canvas2, column, self.N_Ed, M_Edz, Mz_02)
 
 
