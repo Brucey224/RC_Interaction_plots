@@ -66,12 +66,12 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
     N_Rd_negative_list = []
     M_Rdy_positive_list = []
     M_Rdy_negative_list = []
-    Npl_Rd = (column.section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
+    Npl_Rd = (column.concrete_section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
 
-    if column.section.shape == "rectangular" or column.section.shape == "arbitrary":
-        y_limit = column.section.h
-    elif column.section.shape == "circular":
-        y_limit = column.section.diameter
+    if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
+        y_limit = column.concrete_section.h
+    elif column.concrete_section.shape == "circular":
+        y_limit = column.concrete_section.diameter
     for y in range(1, int(y_limit*5),1):
         #add axial force and major axis moment to list for plotting
         N_Rd, M_Rdy, steel_stresses, steel_strains = determine_envelope_value_major_axis_positive(column, 0.8, y)
@@ -116,16 +116,16 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
 
 def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
 
-    Npl_Rd = (column.section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
+    Npl_Rd = (column.concrete_section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
     # PLOT MAJOR AXIS INTERACTION DIAGRAM
     N_Rd_positive_list = []
     N_Rd_negative_list = []
     M_Rdz_positive_list = []
     M_Rdz_negative_list = []
-    if column.section.shape == "rectangular" or column.section.shape == "arbitrary":
-        x_limit = column.section.b
-    elif column.section.shape == "circular":
-        x_limit = column.section.diameter
+    if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
+        x_limit = column.concrete_section.b
+    elif column.concrete_section.shape == "circular":
+        x_limit = column.concrete_section.diameter
     for x in range(1, int(x_limit*5) ,1):
         N_Rd, M_Rdz, steel_stresses, steel_strains = determine_envelope_value_minor_axis_positive(column, 0.8, x)
         N_Rd_positive_list.append(min(Npl_Rd,N_Rd))

@@ -5,10 +5,10 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
 import math
-from .utils import get_concrete_properties, collect_user_input
+from .utils import get_concrete_properties
 from .plotting import plot_rectangular_section, plot_circular_section, plot_arbitrary_section, plot_major_axis_failure_envelope, plot_minor_axis_failure_envelope
 from .codeChecks import check_slenderness
-from .classes import Column
+from .classes import Column, Concrete_Section, Reinforcement, Concrete_Material
 
 class InputApp:
     def __init__(self, root):
@@ -25,6 +25,7 @@ class InputApp:
         self.b = None
         self.h = None
         self.diameter = None
+        self.vertices = None
         self.cover = None
         self.n_x = None
         self.n_y = None
@@ -37,6 +38,10 @@ class InputApp:
         self.L_effy = None
         self.L_effz = None
         self.N_Ed = None
+        self.M_y_top = None
+        self.M_y_bottom = None
+        self.M_z_top = None
+        self.M_z_bottom = None
 
         # Radio Button Variable
         self.shape_var = tk.StringVar(value="rectangular")
@@ -48,33 +53,58 @@ class InputApp:
         self.create_main_layout()
 
     def update_variables_and_plot(self, event):
-        """
-        Update a class attribute dynamically.
-        """
-        # Get the value from the widget that triggered the event
-        self.concrete_grade = self.concrete_dropdown.get()
-        self.f_yk = self.f_yk_entry.get()
-        self.E_s = self.E_s_entry.get()
-        self.link_dia = self.link_dia_entry.get()
-        self.bar_dia = self.bar_dia_entry.get()
-        self.L_effy = self.L_effy_entry.get()
-        self.L_effz = self.L_effz_entry.get()
-        self.N_Ed = self.N_Ed_entry.get()
-        self.M_y_top = self.M_y_top_entry.get()
-        self.M_y_bottom = self.M_y_bottom_entry.get()
-        self.M_z_top = self.M_z_top_entry.get()
-        self.M_z_bottom = self.M_z_bottom_entry.get()
-        self.shape = self.shape_var.get()
+        # Validate and update variables based on the selected shape
+        self.shape = self.shape_var.get()       
+        try:
+            self.link_dia = int(self.link_dia_entry.get()) if hasattr(self, "link_dia_entry") else None
+            self.bar_dia = int(self.bar_dia_entry.get()) if hasattr(self, "bar_dia_entry") else None
+            self.f_yk = float(self.f_yk_entry.get()) if hasattr(self, "f_yk_entry") else None
+            self.E_s = float(self.E_s_entry.get()) if hasattr(self, "E_s_entry") else None
+        except ValueError:
+            print("Bar parameters must be valid inputs.")
+        try:
+            self.L_effy = float(self.L_effy_entry.get()) if hasattr(self, "L_effy_entry") else None
+            self.L_effz = float(self.L_effz_entry.get()) if hasattr(self, "L_effz_entry") else None
+        except ValueError:
+            print("Effective lengths must be numeric values.")
+        try:
+            self.N_Ed = float(self.N_Ed_entry.get()) if hasattr(self, "N_Ed_entry") else None
+            self.M_y_top = float(self.M_y_top_entry.get()) if hasattr(self, "M_y_top_entry") else None
+            self.M_y_bottom = float(self.M_y_bottom_entry.get()) if hasattr(self, "M_y_bottom_entry") else None
+            self.M_z_top = float(self.M_z_top_entry.get()) if hasattr(self, "M_z_top_entry") else None
+            self.M_z_bottom = float(self.M_z_bottom_entry.get()) if hasattr(self, "M_z_bottom_entry") else None
+        except ValueError:
+            print("make sure forces are numeric values.")
+        
         if self.shape == "rectangular":
-            self.b = self.b_entry.get() if hasattr(self.b_entry) else None
-            self.h = self.h_entry.get() if hasattr(self.h_entry) else None
-            self.n_x = self.n_x_entry.get() if hasattr(self.n_x_entry) else None
-            self.n_y = self.n_y_entry.get() if hasattr(self.n_y_entry) else None
+            try:
+                self.b = int(self.b_entry.get()) if hasattr(self, "b_entry") else None
+                self.h = int(self.h_entry.get()) if hasattr(self, "h_entry") else None
+            except ValueError:
+                print("Error: Section width (b) and height (h) must be integers.")
+                return 
+            # Validate that n_x and n_y are integers
+            try:
+                self.n_x = int(self.n_x_entry.get())
+                self.n_y = int(self.n_y_entry.get())
+            except ValueError:
+                print("Error: Number of bars (n_x and n_y) must be integers.")
+                return 
+            try:
+                self.cover = float(self.cover_entry.get())
+            except ValueError:
+                print("Error: Cover must be a numeric value.")
+                return 
         elif self.shape == "circular":
             self.diameter = self.diameter_entry.get() if hasattr(self.diameter_entry) else None
             self.cover = self.cover_entry.get() if hasattr(self.cover_entry) else None
             self.radial_num_bars = self.radial_num_bars_input.get() if hasattr(self.radial_num_bars_input) else None
         
+        elif self.shape == "arbitrary":
+            self.vertices = self.vertices_input.get("1.0", tk.END).strip()
+            self.rebar_coords = self.rebar_coords_input.get("1.0", tk.END).strip()
+
+
         type_mapping = {
             "shape": str,
             "b": float,
@@ -110,8 +140,7 @@ class InputApp:
                     print(f"Failed to convert {attribute} to {type_mapping[attribute].__name__}. Value: {value}")
 
         # Call the appropriate plotting function based on the shape
-        shape = self.shape_var.get()
-        if shape == "rectangular":
+        if self.shape == "rectangular":
             plot_rectangular_section(
                 self.ax0,
                 self.canvas0,
@@ -123,7 +152,7 @@ class InputApp:
                 self.n_x,
                 self.n_y,
             )
-        elif shape == "circular":
+        elif self.shape == "circular":
             plot_circular_section(
                 self.ax0,
                 self.canvas0,
@@ -131,7 +160,7 @@ class InputApp:
                 self.radial_num_bars,
                 self.cover,
             )
-        elif shape == "arbitrary":
+        elif self.shape == "arbitrary":
             self.update_section_plot()  # For arbitrary shapes, use the existing method
 
     def create_main_layout(self):
@@ -507,7 +536,7 @@ class InputApp:
     def update_section_plot(self):
         # Clear the previous plot
         self.ax0.clear()
-
+        print("rebar_coordinates:", self.bar_list)
         # Unpack the list of coordinates into x and y values
         if self.coord_list:
             vertices_x_vals, vertices_y_vals = zip(*self.coord_list)
@@ -554,9 +583,14 @@ class InputApp:
         self.update_section_plot()
 
     def plot_envelopes (self):
-        column = Column()    
+        concrete_properties = get_concrete_properties(self.concrete_dropdown.get())
+        concrete_section = Concrete_Section(shape=self.shape, h=self.h, b=self.b, diameter = self.diameter, vertices = self.vertices)
+        reinforcement = Reinforcement(self.f_yk, self.E_s, self.bar_dia, self.link_dia, shape=self.shape, cover = self.cover, b = self.b, h = self.h, diameter = self.diameter, num_of_rows_of_rebar = self.n_y, num_of_cols_of_rebar = self.n_x, radial_number = self.radial_num_bars, bar_list = self.bar_list, gamma_s=1.15)
+        print(f'L_effy: {self.L_effy}, L_effz: {self.L_effz}')
+        print(f'concrete_section: {concrete_section}')
+        print(f'reinforcement: {reinforcement}')
+        column = Column(concrete_section, reinforcement, concrete_properties, self.L_effy, self.L_effz)
+        print(f'moments collected: M_y_top: {self.M_y_top}, M_y_bottom: {self.M_y_bottom}, M_z_top: {self.M_z_top}, M_z_bottom: {self.M_z_bottom}')
         My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, self.N_Ed, self.M_y_top, self.M_y_bottom, self.M_z_top, self.M_z_bottom)
         plot_major_axis_failure_envelope(self.ax1, self.canvas1, column, self.N_Ed, M_Edy, My_02)
         plot_minor_axis_failure_envelope(self.ax2, self.canvas2, column, self.N_Ed, M_Edz, Mz_02)
-
-

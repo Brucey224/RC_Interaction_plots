@@ -1,4 +1,4 @@
-from .classes import Concrete_Material, Section, Column, Reinforcement
+from .classes import Concrete_Material, Concrete_Section, Column, Reinforcement
 import pandas as pd
 import importlib.resources as pkg_resources
 

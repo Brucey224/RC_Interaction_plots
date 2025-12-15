@@ -1,7 +1,7 @@
 # Import key classes and functions to expose them at the package level
 from .inputApp import InputApp
-from .classes import Section, Column, Concrete_Material, Reinforcement
-from .utils import get_concrete_properties, collect_user_input
+from .classes import Concrete_Section, Column, Concrete_Material, Reinforcement
+from .utils import get_concrete_properties
 from .geometryUtils import arrange_circular_bars, arrange_rectangular_bars, compute_second_moment_area, clip_polygon_at_y, clip_polygon_at_x
 from .plotting import plot_rectangular_section, plot_circular_section
 from .codeChecks import check_moments, check_slenderness, compute_major_axis_slender_moments, compute_minor_axis_slender_moments, compute_creep_coefficients

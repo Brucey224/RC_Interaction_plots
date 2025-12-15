@@ -28,18 +28,18 @@ def check_slenderness (column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, p
     M_01z, M_02z =  check_moments(N_Ed, M_z_top, M_z_bottom)
     
     # Check absolute slenderness
-    slenderness_ratio_y = column.L_eff_y*1e3 / column.section.i_y
-    slenderness_ratio_z = column.L_eff_z*1e3 / column.section.i_z
+    slenderness_ratio_y = column.L_eff_y*1e3 / column.concrete_section.i_y
+    slenderness_ratio_z = column.L_eff_z*1e3 / column.concrete_section.i_z
 
-    if column.section.shape == "rectangular":
-        e_0 = max(column.section.h/30, 20)*1e-3 # eccentricity dimension in m 
-    elif column.section.shape == "circular":
-        e_0 = max(column.section.diameter/30, 20)*1e-3 # eccentricity dimension in m
-    elif column.section.shape == "arbitrary":
-        e_0  = max((column.section.top_of_section - column.section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
+    if column.concrete_section.shape == "rectangular":
+        e_0 = max(column.concrete_section.h/30, 20)*1e-3 # eccentricity dimension in m 
+    elif column.concrete_section.shape == "circular":
+        e_0 = max(column.concrete_section.diameter/30, 20)*1e-3 # eccentricity dimension in m
+    elif column.concrete_section.shape == "arbitrary":
+        e_0  = max((column.concrete_section.top_of_section - column.concrete_section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
     # Check slenderness limits
     print(f"reinforcement area: {column.reinforcement.A_s}")
-    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.section.A*column.concrete_properties.f_cd)
+    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.concrete_section.A*column.concrete_properties.f_cd)
     print(f'reinforcement ratio: {mechanical_reinforcement_ratio}')
     if phi_eff:
         A = 1 / (1+0.2*phi_eff)
@@ -50,7 +50,7 @@ def check_slenderness (column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, p
     r_m_z = M_01z / M_02z
     C_y = 1.7 - r_m_y
     C_z = 1.7 - r_m_z
-    n = N_Ed / (column.section.A * column.concrete_properties.f_cd * 1e-3)  # axial force utilisation
+    n = N_Ed / (column.concrete_section.A * column.concrete_properties.f_cd * 1e-3)  # axial force utilisation
     print(f'A: {A}')
     print(f'B: {B}')
     print(f'C_y: {C_y}')
@@ -84,17 +84,17 @@ def check_slenderness (column, N_Ed, M_y_top, M_y_bottom, M_z_top, M_z_bottom, p
 
 def compute_major_axis_slender_moments(column, slenderness_ratio, N_Ed, n, M_01y, M_02y, phi_eff = 2.15):
     print(f"reinforcement area: {column.reinforcement.A_s}")
-    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.section.A*column.concrete_properties.f_cd) 
+    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.concrete_section.A*column.concrete_properties.f_cd) 
     n_u = 1 + mechanical_reinforcement_ratio
     n_bal = 0.4
     K_r = min((n_u - n)/(n_u - n_bal), 1)
     print(f'K_r: {K_r}')
-    if column.section.shape == "rectangular":
-        e_0 = max(column.section.h/30, 20)*1e-3 # eccentricity dimension in m 
-    elif column.section.shape == "circular":
-        e_0 = max(column.section.diameter/30, 20)*1e-3 # eccentricity dimension in m
-    elif column.section.shape == "arbitrary":
-        e_0  = max((column.section.top_of_section - column.section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
+    if column.concrete_section.shape == "rectangular":
+        e_0 = max(column.concrete_section.h/30, 20)*1e-3 # eccentricity dimension in m 
+    elif column.concrete_section.shape == "circular":
+        e_0 = max(column.concrete_section.diameter/30, 20)*1e-3 # eccentricity dimension in m
+    elif column.concrete_section.shape == "arbitrary":
+        e_0  = max((column.concrete_section.top_of_section - column.concrete_section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
 
     beta = 0.35 + column.concrete_properties.f_ck/200 - slenderness_ratio/150
     K_phi = max (1, (1+beta*phi_eff))
@@ -107,7 +107,7 @@ def compute_major_axis_slender_moments(column, slenderness_ratio, N_Ed, n, M_01y
 
 def compute_minor_axis_slender_moments(column, slenderness_ratio, N_Ed, n, M_01z, M_02z, phi_eff = 2.15):
     
-    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.section.A*column.concrete_properties.f_cd)
+    mechanical_reinforcement_ratio = (column.reinforcement.A_s*column.reinforcement.f_yd) / (column.concrete_section.A*column.concrete_properties.f_cd)
     n_u = 1 + mechanical_reinforcement_ratio
     n_bal = 0.4
     if (n_u - n)/(n_u - n_bal) >=1:
@@ -115,12 +115,12 @@ def compute_minor_axis_slender_moments(column, slenderness_ratio, N_Ed, n, M_01z
     else:
         K_r = (n_u - n)/(n_u - n_bal)
     
-    if column.section.shape == "rectangular":
-        e_0 = max(column.section.h/30, 20)*1e-3 # eccentricity dimension in m 
-    elif column.section.shape == "circular":
-        e_0 = max(column.section.diameter/30, 20)*1e-3 # eccentricity dimension in m
-    elif column.section.shape == "arbitrary":
-        e_0  = max((column.section.top_of_section - column.section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
+    if column.concrete_section.shape == "rectangular":
+        e_0 = max(column.concrete_section.h/30, 20)*1e-3 # eccentricity dimension in m 
+    elif column.concrete_section.shape == "circular":
+        e_0 = max(column.concrete_section.diameter/30, 20)*1e-3 # eccentricity dimension in m
+    elif column.concrete_section.shape == "arbitrary":
+        e_0  = max((column.concrete_section.top_of_section - column.concrete_section.bottom_of_section)/30, 20)*1e-3 # eccentricity dimension in m
 
     beta = 0.35 + column.concrete_properties.f_ck/200 - slenderness_ratio/150
     K_phi = max (1, (1+beta*phi_eff))
@@ -141,7 +141,7 @@ def compute_creep_coefficients(column, RH, M_Ed_y, M_Ed_z, M_0Eqp_y, M_0Eqp_z, t
         phi_RH = (1 + (1-(RH/100)) / (0.1*h_0**(1/3))* alpha_1 )* alpha_2
     beta_fcm = 16.8 / f_cm**0.5
     beta_t_0 =  1 / (0.1 + t_0**0.2)
-    h_0 = 2*column.section.A / column.section.polygon.length
+    h_0 = 2*column.concrete_section.A / column.concrete_section.polygon.length
     phi_0 = phi_RH * beta_fcm * beta_t_0
     phi_inf_t0 = phi_RH * beta_fcm * beta_t_0  
     phi_effy = phi_inf_t0 * M_0Eqp_y / M_Ed_y
