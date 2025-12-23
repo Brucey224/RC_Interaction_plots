@@ -55,7 +55,8 @@ class Column():
             self.d_2 = (reinforcement.cover + reinforcement.link_diameter + reinforcement.bar_diameter/2)#*mm
             self.dz = (concrete_section.b - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2)#*mm
         elif concrete_section.shape == 'circular':
-            self.d = (concrete_section.diameter - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2)#*mm
+            self.dy = (concrete_section.diameter - reinforcement.cover - reinforcement.link_diameter - reinforcement.bar_diameter/2)#*mm
+            self.dz = self.dy
             self.d_2 = (reinforcement.cover + reinforcement.link_diameter + reinforcement.bar_diameter/2)#*mm
         elif concrete_section.shape == 'arbitrary':
             self.dy = self.concrete_section.h - min(coord[1] for coord in self.reinforcement.arrangement)
@@ -85,7 +86,6 @@ class Concrete_Material():
 
 class Reinforcement():
     def __init__(self, f_yk, E_s, bar_diameter, link_diameter, cover = None, shape=None, b =None, h = None, diameter = None, num_of_rows_of_rebar = None, num_of_cols_of_rebar = None, radial_number = None, bar_list = None, gamma_s=1.15):
-        print(f'Reinforcement parameters......, shape: {shape},f_yk: {f_yk},  E_s: {E_s},   bar_diameter: {bar_diameter}, link_diameter: {link_diameter},    b: {b},      h: {h},    diameter: {diameter},      num_of_rows_of_rebar: {num_of_rows_of_rebar},     num_of_cols_of_rebar: {num_of_cols_of_rebar},    radial_number: {radial_number},   bar_list: {bar_list}')
         self.shape = shape
         self.f_yk = float(f_yk)#*MPa
         self.E_s = float(E_s)#*GPa
@@ -110,7 +110,6 @@ class Reinforcement():
                 y2 = h - cover - link_diameter - bar_diameter/2
                 bar_list.append([x2,y2])
                 A_s += 2* math.pi * (bar_diameter/2)**2
-                print(f'A_s: {A_s}')
             # create side bars
             for j in range(num_of_rows_of_rebar-2):
                 x1 = cover + link_diameter + bar_diameter/2
@@ -120,7 +119,6 @@ class Reinforcement():
                 y2 = y1
                 bar_list.append([x2,y2])
                 A_s += 2* math.pi * (bar_diameter/2)**2
-                print(f'A_s: {A_s}')
 
         elif self.shape == 'circular':
             bar_list = []

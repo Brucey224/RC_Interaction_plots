@@ -66,20 +66,18 @@ def clip_polygon_at_x(polygon, x_value):
 def integrate_part_of_circle(neutral_axis, diameter, lambd):
     r = diameter / 2 
     distance_from_centre = diameter / 2 - lambd * neutral_axis
-    if distance_from_centre < diameter/2:
-        # Calculate the area using the integral
-        result, error = quad(lambda x, r: np.sqrt(r**2 - distance_from_centre**2), distance_from_centre, r, args=(r,))
-        area = 2 * result
+    if distance_from_centre < diameter/2 and distance_from_centre > -diameter/2:
         # Calculate the angle for the centroid calculation
-        theta = 2 * np.arccos(distance_from_centre/ r)
-        area = r**2/2 *(theta - np.sin(theta))
+        theta = np.arccos(distance_from_centre/ r)
+        area = 0.5*r**2 *(2*theta - np.sin(2*theta))
         # Calculate the centroid y-coordinate (only y because x is 0 / not applicable)
-        centroid = diameter/2 - (4 * r * (np.sin(theta / 2) ** 3)) / (3 * (theta - np.sin(theta)))
+        centroid = diameter/2 - (4 * r * (np.sin(theta) ** 3)) / (3 * (2*theta - np.sin(2*theta)))
         lever_arm = neutral_axis - centroid
+        print(f"distance from centre: {distance_from_centre}, angle theta: {theta}, area: {area}, centroid: {centroid}, lever arm: {lever_arm}")
     else:
         area = math.pi*diameter**2/4
         lever_arm = neutral_axis - diameter/2
-        centroid_y = diameter/2
+        centroid = diameter/2
     return area, centroid, lever_arm
 
 def compute_area_and_centroid(polygon):

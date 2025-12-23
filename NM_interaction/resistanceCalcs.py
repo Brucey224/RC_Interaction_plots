@@ -2,37 +2,73 @@ from shapely.geometry import Polygon
 import math
 from .geometryUtils import compute_area_and_centroid, clip_polygon_at_y, clip_polygon_at_x, integrate_part_of_circle
 
+def compute_plastic_axial_capacity(column):
+    Npl_Rd = (column.concrete_section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.concrete_properties.eps_c3 * column.reinforcement.E_s*1e3)*1e-3 #kN
+    T_pl_Rd = - (len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3 #kN
+    return T_pl_Rd, Npl_Rd
+
+def determine_generic_major_axis_envelope_value(column, lambd, neutral_axis, moment_direction = 'positive'):
+    N_Rd = 0 # Axial capacity in kN
+    M_Rd = 0 # Moment capacity in kNm
+    if moment_direction == 'positive':
+        curvature = 1
+    elif moment_direction == 'negative':
+        curvature = -1 
+    
+    if column.concrete_section.shape == 'rectangular':
+        section_centroid = [column.concrete_section.b/2, column.concrete_section.h/2]
+        d_cy = min(lambd*neutral_axis, column.concrete_section.h)
+        if neutral_axis <= column.concrete_section.h:
+            in_section = True
+            lever_arm_concrete_y = neutral_axis * (1 - lambd/2)
+            F_cc = d_cy * column.concrete_section.b * column.concrete_properties.f_cd *1e-3
+
+    
 def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):       # Determines envelope value for major axis bending
     N_Rd = 0 # Axial capacity in kN
     M_Rdy = 0 # Moment capacity in kNm
-
+    steel_contribution_M = 0
+    steel_contribution_N = 0
     if column.concrete_section.shape == 'rectangular':
         section_centroid = [column.concrete_section.b/2, column.concrete_section.h/2]
         d_cy = min(lambd*neutral_axis_y, column.concrete_section.h)
         if neutral_axis_y <= column.concrete_section.h:
             in_section = True
             lever_arm_concrete_y = neutral_axis_y * (1 - lambd/2)
-            N_Rd += d_cy * column.concrete_section.b * column.concrete_properties.f_cd *1e-3
-            M_Rdy += d_cy * column.concrete_section.b * column.concrete_properties.f_cd * lever_arm_concrete_y *1e-6
+            F_cc = d_cy * column.concrete_section.b * column.concrete_properties.f_cd *1e-3
+            N_Rd += F_cc
+            M_Rdy += F_cc * lever_arm_concrete_y *1e-3
+            concrete_contribution_N = F_cc
+            concrete_contribution_M = F_cc * lever_arm_concrete_y *1e-3
         else:
             in_section = False
             lever_arm_concrete_y = (neutral_axis_y - d_cy/2)
-            N_Rd += d_cy * column.concrete_section.b * column.concrete_properties.f_cd *1e-3
-            M_Rdy += d_cy * column.concrete_section.b * column.concrete_properties.f_cd * lever_arm_concrete_y * 1e-6
+            F_cc = d_cy * column.concrete_section.b * column.concrete_properties.f_cd *1e-3
+            N_Rd += F_cc
+            M_Rdy += F_cc * lever_arm_concrete_y * 1e-3
+            concrete_contribution_N = F_cc
+            concrete_contribution_M = F_cc * lever_arm_concrete_y *1e-3
     
     elif column.concrete_section.shape == 'circular':
+        d_cy = min(lambd*neutral_axis_y, column.concrete_section.diameter)
         section_centroid = [column.concrete_section.diameter/2, column.concrete_section.diameter/2]
         if neutral_axis_y <= column.concrete_section.diameter:
             in_section = True
             segment_area, centroid_y, lever_arm_concrete_y = integrate_part_of_circle(neutral_axis_y, column.concrete_section.diameter, lambd) # area in mm^2, centroid distance in mm
-            N_Rd += segment_area*column.concrete_properties.f_cd *1e-3
-            M_Rdy += segment_area*column.concrete_properties.f_cd*lever_arm_concrete_y *1e-6
+            F_cc = segment_area * column.concrete_properties.f_cd * 1e-3
+            N_Rd += F_cc
+            concrete_contribution_N = F_cc
+            concrete_contribution_M = F_cc*lever_arm_concrete_y *1e-3
+            M_Rdy += F_cc*lever_arm_concrete_y *1e-3
         else:
             in_section = False
-            lever_arm_concrete_y = neutral_axis_y - section_centroid[1]
-            N_Rd += column.concrete_section.A*column.concrete_properties.f_cd * 1e-3
-            M_Rdy += column.concrete_section.A*column.concrete_properties.f_cd * lever_arm_concrete_y *1e-6
-        
+            segment_area, centroid_y, lever_arm_concrete_y = integrate_part_of_circle(neutral_axis_y, column.concrete_section.diameter, lambd) # area in mm^2, centroid distance in mm
+            F_cc = segment_area*column.concrete_properties.f_cd * 1e-3
+            N_Rd += F_cc
+            concrete_contribution_N = F_cc
+            concrete_contribution_M = F_cc*lever_arm_concrete_y *1e-3
+            M_Rdy += F_cc*lever_arm_concrete_y *1e-3
+
         #Define concrete strain according to neutral axis location
     
     elif column.concrete_section.shape == 'arbitrary':
@@ -71,9 +107,9 @@ def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):
                 steel_strain = concrete_strain * ((column.concrete_section.bottom_of_section + neutral_axis_y) - rebar_coords[1]) / (neutral_axis_y)   # Steel strain computed if neutral axis is within the section. Sim triangles 
         else:
             if column.concrete_section.shape == "rectangular":
-                steel_strain = (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y) * concrete_strain
+                steel_strain = concrete_strain * (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y)
             elif column.concrete_section.shape == "circular":
-                steel_strain = concrete_strain * (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y - column.concrete_section.diameter/2)
+                steel_strain = concrete_strain * (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y)
             elif column.concrete_section.shape == "arbitrary":
                 steel_strain = concrete_strain * ((column.concrete_section.bottom_of_section + neutral_axis_y) - rebar_coords[1]) / (neutral_axis_y - section_centroid[1])
 
@@ -86,15 +122,19 @@ def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):
             lever_arm_y = neutral_axis_y - rebar_coords[1]
         elif column.concrete_section.shape == "arbitrary":
             lever_arm_y = column.concrete_section.bottom_of_section + neutral_axis_y - rebar_coords[1]# lever arm from neutral axis in mm
-
-        N_Rd += steel_stress * math.pi * (column.reinforcement.bar_diameter)**2 /4 * 1e-3 #kN
-        M_Rdy += steel_stress * math.pi * (column.reinforcement.bar_diameter)**2 /4 * lever_arm_y *1e-6 #kNm
-
+        steel_force = steel_stress * math.pi * (column.reinforcement.bar_diameter)**2 /4 # force in N by multiplying MPa by area in mm^2
+        N_Rd += steel_force * 1e-3 #kN
+        M_Rdy += steel_force * lever_arm_y *1e-6 #kNm
+        steel_contribution_M += steel_stress * math.pi * (column.reinforcement.bar_diameter)**2 /4 * lever_arm_y *1e-6
+        steel_contribution_N += steel_stress * math.pi * (column.reinforcement.bar_diameter)**2 /4 * 1e-3
+    
     # compute moment contribution from axial force acting on section
     if column.concrete_section.shape == "rectangular":
         M_Rdy += N_Rd*(section_centroid[1] - neutral_axis_y) * 1e-3 #kNm
+        axial_contribution_M = N_Rd*(section_centroid[1] - neutral_axis_y) * 1e-3
     elif column.concrete_section.shape == "circular":
         M_Rdy += N_Rd*(section_centroid[1] - neutral_axis_y) * 1e-3 #kNm
+        axial_contribution_M = N_Rd*(section_centroid[1] - neutral_axis_y) * 1e-3
     elif column.concrete_section.shape == "arbitrary":
         M_Rdy += N_Rd*(section_centroid[1] - (column.concrete_section.bottom_of_section + neutral_axis_y)) * 1e-3 #kNm
 

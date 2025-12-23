@@ -95,11 +95,21 @@ class InputApp:
             except ValueError:
                 print("Error: Cover must be a numeric value.")
                 return 
+            
         elif self.shape == "circular":
-            self.diameter = self.diameter_entry.get() if hasattr(self.diameter_entry) else None
-            self.cover = self.cover_entry.get() if hasattr(self.cover_entry) else None
-            self.radial_num_bars = self.radial_num_bars_input.get() if hasattr(self.radial_num_bars_input) else None
-        
+            try:
+                self.diameter = float(self.diameter_entry.get()) if hasattr(self, "diameter_entry") else None
+                self.cover = float(self.cover_entry.get()) if hasattr(self, "cover_entry") else None
+            except ValueError:
+                print("Error: Ensure cover and dimaeters are numeric values.")
+                return
+            try:
+                self.radial_num_bars = int(self.radial_num_bars_entry.get()) if hasattr(self, "radial_num_bars_entry") else None
+                print(f"radial num bars: {self.radial_num_bars}")
+            except ValueError:
+                print("Error: Number of radial bars must be an integer")
+                return      
+               
         elif self.shape == "arbitrary":
             self.vertices = self.vertices_input.get("1.0", tk.END).strip()
             self.rebar_coords = self.rebar_coords_input.get("1.0", tk.END).strip()
@@ -141,25 +151,9 @@ class InputApp:
 
         # Call the appropriate plotting function based on the shape
         if self.shape == "rectangular":
-            plot_rectangular_section(
-                self.ax0,
-                self.canvas0,
-                self.b,
-                self.h,
-                self.cover,
-                self.link_dia,
-                self.bar_dia,
-                self.n_x,
-                self.n_y,
-            )
+            plot_rectangular_section(self.ax0, self.canvas0,self.b,self.h,self.cover,self.link_dia,self.bar_dia,self.n_x,self.n_y)
         elif self.shape == "circular":
-            plot_circular_section(
-                self.ax0,
-                self.canvas0,
-                self.diameter,
-                self.radial_num_bars,
-                self.cover,
-            )
+            plot_circular_section(self.ax0,self.canvas0,self.diameter,self.radial_num_bars,self.cover )
         elif self.shape == "arbitrary":
             self.update_section_plot()  # For arbitrary shapes, use the existing method
 
@@ -219,6 +213,8 @@ class InputApp:
         self.L_effy_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
         self.L_effy_units = ttk.Label(self.lengthloads_frame, text="m")
         self.L_effy_units.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+        self.L_effy_entry.bind("<Return>", self.update_variables_and_plot)
+        self.L_effy_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.L_effz_label = ttk.Label(self.lengthloads_frame, text="L_eff,z:")
         self.L_effz_label.grid(row=0, column=3, padx=10, pady=5, sticky="e")
@@ -226,6 +222,8 @@ class InputApp:
         self.L_effz_entry.grid(row=0, column=4, padx=10, pady=5, sticky="ew")
         self.L_effz_units = ttk.Label(self.lengthloads_frame, text="m")
         self.L_effz_units.grid(row=0, column=5, padx=10, pady=5, sticky="w")
+        self.L_effz_entry.bind("<Return>", self.update_variables_and_plot)
+        self.L_effz_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.N_Ed_label = ttk.Label(self.lengthloads_frame, text="N_Ed:")
         self.N_Ed_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
@@ -233,6 +231,8 @@ class InputApp:
         self.N_Ed_entry.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
         self.N_Ed_units = ttk.Label(self.lengthloads_frame, text="kN")
         self.N_Ed_units.grid(row=2, column=2, padx=10, pady=5, sticky="w")
+        self.N_Ed_entry.bind("<Return>", self.update_variables_and_plot)
+        self.N_Ed_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.First_order_moments_label = ttk.Label(self.lengthloads_frame, text="First Order Moments:")
         self.First_order_moments_label.grid(row=3, column=0, padx=10, pady=5, sticky="w")
@@ -243,6 +243,8 @@ class InputApp:
         self.M_y_top_entry.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
         self.M_y_top_units = ttk.Label(self.lengthloads_frame, text="kNm")
         self.M_y_top_units.grid(row=4, column=2, padx=10, pady=5, sticky="w")
+        self.M_y_top_entry.bind("<Return>", self.update_variables_and_plot)
+        self.M_y_top_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.M_y_bottom_label = ttk.Label(self.lengthloads_frame, text="M_y [bottom]:")
         self.M_y_bottom_label.grid(row=5, column=0, padx=10, pady=5, sticky="e")
@@ -250,6 +252,8 @@ class InputApp:
         self.M_y_bottom_entry.grid(row=5, column=1, padx=10, pady=5, sticky="ew")
         self.M_y_bottom_units = ttk.Label(self.lengthloads_frame, text="kNm")
         self.M_y_bottom_units.grid(row=5, column=2, padx=10, pady=5, sticky="w")
+        self.M_y_bottom_entry.bind("<Return>", self.update_variables_and_plot)
+        self.M_y_bottom_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.M_z_top_label = ttk.Label(self.lengthloads_frame, text="M_z [top]:")
         self.M_z_top_label.grid(row=4, column=3, padx=10, pady=5, sticky="e")
@@ -257,6 +261,8 @@ class InputApp:
         self.M_z_top_entry.grid(row=4, column=4, padx=10, pady=5, sticky="ew")
         self.M_z_top_units = ttk.Label(self.lengthloads_frame, text="kNm")
         self.M_z_top_units.grid(row=4, column=5, padx=10, pady=5, sticky="w")
+        self.M_z_top_entry.bind("<Return>", self.update_variables_and_plot)
+        self.M_z_top_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.M_z_bottom_label = ttk.Label(self.lengthloads_frame, text="M_z [botom]:")
         self.M_z_bottom_label.grid(row=5, column=3, padx=10, pady=5, sticky="e")
@@ -264,6 +270,8 @@ class InputApp:
         self.M_z_bottom_entry.grid(row=5, column=4, padx=10, pady=5, sticky="ew")
         self.M_z_bottom_units = ttk.Label(self.lengthloads_frame, text="kNm")
         self.M_z_bottom_units.grid(row=5, column=5, padx=10, pady=5, sticky="w")
+        self.M_z_bottom_entry.bind("<Return>", self.update_variables_and_plot)
+        self.M_z_bottom_entry.bind("<FocusOut>", self.update_variables_and_plot)
 
         self.plot_results_button = ttk.Button(self.root, text="Plot Failure Envelopes", command = self.plot_envelopes)
         self.plot_results_button.grid(row=5, column=6, padx=10, pady=5, sticky="ew")

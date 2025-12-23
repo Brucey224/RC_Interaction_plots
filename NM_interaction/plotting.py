@@ -101,7 +101,8 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
     ax.scatter(M_Edy,N_Ed, label = 'Second Order design action effects', color = '#C2B658')
     ax.axhline(0, color='black', linewidth=0.5)  # Horizontal line at y = 0
     ax.axvline(0, color='black', linewidth=0.5)  # Vertical line at x = 0
-    ax.grid(True, which='major', linestyle='-', linewidth=0.4, color='gray', alpha=0.5)
+    # Add faint gridlines to the plot
+    plt.grid(visible=True, which='both', color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.spines['left'].set_position(('data', 0)) # Move the left spine to x=0
     ax.spines['right'].set_color('none') # Hide the right spine
     ax.spines['bottom'].set_position(('data', 0)) # Move the bottom spine to y=0
@@ -144,7 +145,7 @@ def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
     ax.scatter(M_Edz,N_Ed, label = 'Second Order design action effects', color = '#C2B658')
     ax.axhline(0, color='black', linewidth=0.5)  # Horizontal line at y = 0
     ax.axvline(0, color='black', linewidth=0.5)  # Vertical line at x = 0
-    ax.grid(True, which='major', linestyle='-', linewidth=0.4, color='gray', alpha=0.5)
+    plt.grid(visible=True, which='both', color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.spines['left'].set_position(('data', 0)) # Move the left spine to x=0
     ax.spines['right'].set_color('none') # Hide the right spine
     ax.spines['bottom'].set_position(('data', 0)) # Move the bottom spine to y=0
