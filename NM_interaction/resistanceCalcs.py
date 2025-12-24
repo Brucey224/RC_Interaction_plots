@@ -162,12 +162,15 @@ def determine_envelope_value_major_axis_negative(column, lambd, neutral_axis_y):
         if (column.concrete_section.diameter - neutral_axis_y) > 0:
             in_section = True
             segment_area, centroid_y, lever_arm_y = integrate_part_of_circle(neutral_axis_y, column.concrete_section.diameter, lambd) # area in mm^2, centroid distance in mm
-            N_Rd += segment_area* column.concrete_properties.f_cd *1e-3
-            M_Rdy += - lever_arm_y * segment_area * column.concrete_properties.f_cd *1e-6
+            F_cc = segment_area * column.concrete_properties.f_cd * 1e-3
+            N_Rd += F_cc
+            M_Rdy += - F_cc * lever_arm_y *1e-3
         else:
             in_section = False
-            N_Rd += column.concrete_section.A*column.concrete_properties.f_cd * 1e-3
-            M_Rdy += column.concrete_section.A*column.concrete_properties.f_cd * (section_centroid[0] - neutral_axis_y) *1e-6
+            segment_area, centroid_y, lever_arm_concrete_y = integrate_part_of_circle(neutral_axis_y, column.concrete_section.diameter, lambd) # area in mm^2, centroid distance in mm
+            F_cc = segment_area*column.concrete_properties.f_cd * 1e-3
+            N_Rd += F_cc
+            M_Rdy += - F_cc * lever_arm_concrete_y *1e-3
     
     elif column.concrete_section.shape == 'arbitrary':
         section_centroid = compute_area_and_centroid(column.concrete_section.polygon)[1]

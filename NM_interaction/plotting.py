@@ -3,7 +3,7 @@ from matplotlib.patches import Rectangle, Circle
 import numpy as np
 import math
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from .resistanceCalcs import determine_envelope_value_major_axis_negative, determine_envelope_value_major_axis_positive, determine_envelope_value_minor_axis_negative, determine_envelope_value_minor_axis_positive
+from .resistanceCalcs import determine_envelope_value_major_axis_negative, determine_envelope_value_major_axis_positive, determine_envelope_value_minor_axis_negative, determine_envelope_value_minor_axis_positive, compute_plastic_axial_capacity
 from .geometryUtils import arrange_rectangular_bars, arrange_circular_bars, rotate_points_3d
 
 def plot_rectangular_section(ax, canvas, b, h, cover, link_dia, bar_dia, n_x, n_y, event=None):
@@ -61,13 +61,16 @@ def plot_arbitrary_section(ax, canvas, coord_list, bar_list, event=None):
     canvas.draw()
 
 def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
+    T_pl_Rd, Npl_Rd = compute_plastic_axial_capacity(column)
     #Collect user inputs for processing
     N_Rd_positive_list = []
     N_Rd_negative_list = []
     M_Rdy_positive_list = []
     M_Rdy_negative_list = []
-    Npl_Rd = (column.concrete_section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
-
+    M_Rdy_negative_list.append(0)
+    N_Rd_negative_list.append(T_pl_Rd)
+    M_Rdy_positive_list.append(0)
+    N_Rd_positive_list.append(T_pl_Rd)
     if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
         y_limit = column.concrete_section.h
     elif column.concrete_section.shape == "circular":
@@ -77,14 +80,17 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
         N_Rd, M_Rdy, steel_stresses, steel_strains = determine_envelope_value_major_axis_positive(column, 0.8, y)
         N_Rd_positive_list.append(min(Npl_Rd,N_Rd))
         M_Rdy_positive_list.append(M_Rdy)
-        
     # PLOT NEGATIVE MOMENT SIDE OF DIAGRAM
     for y in range(1, int(y_limit*5), 1):
         # add axial force and major axis moment to list for plotting
         N_Rd, M_Rdy, steel_stresses, steel_strains = determine_envelope_value_major_axis_negative(column, 0.8, y)
         N_Rd_negative_list.append(min(Npl_Rd,N_Rd))
         M_Rdy_negative_list.append(M_Rdy)
-        
+    M_Rdy_negative_list.append(0)
+    N_Rd_negative_list.append(Npl_Rd)
+    M_Rdy_positive_list.append(0)
+    N_Rd_positive_list.append(Npl_Rd)
+
     N_ratio = N_Ed / Npl_Rd
 
     if N_ratio <= 0.1:
@@ -95,14 +101,14 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
         a = 1.5 + (N_ratio - 0.7) * 0.5 / 0.3
 
     ax.clear()
-    ax.plot(M_Rdy_positive_list, N_Rd_positive_list, label = 'Interaction envelope - major axis - positive moment', color = '#006D62')
-    ax.plot(M_Rdy_negative_list, N_Rd_negative_list, label = 'Interaction envelope - major axis - negative moment', linestyle = '--', color = '#802628')
-    ax.scatter(My_02,N_Ed, label = 'First Order design action effects', color = '#88BBC2')
-    ax.scatter(M_Edy,N_Ed, label = 'Second Order design action effects', color = '#C2B658')
+    ax.plot(M_Rdy_positive_list, N_Rd_positive_list, color = 'black')
+    ax.plot(M_Rdy_negative_list, N_Rd_negative_list, linestyle = '--', color = 'black')
+    ax.scatter(My_02,N_Ed, label = '1st Order design actions', color = '#88BBC2')
+    ax.scatter(M_Edy,N_Ed, label = '2nd Order design actions', color = '#C2B658')
     ax.axhline(0, color='black', linewidth=0.5)  # Horizontal line at y = 0
     ax.axvline(0, color='black', linewidth=0.5)  # Vertical line at x = 0
     # Add faint gridlines to the plot
-    plt.grid(visible=True, which='both', color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.grid(visible=True, which='both', color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.spines['left'].set_position(('data', 0)) # Move the left spine to x=0
     ax.spines['right'].set_color('none') # Hide the right spine
     ax.spines['bottom'].set_position(('data', 0)) # Move the bottom spine to y=0
@@ -111,18 +117,25 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
     ax.yaxis.set_ticks_position('left')
     ax.tick_params(axis='y', direction='inout', length=6)
     ax.tick_params(axis='x', rotation=90)
+    ax.set_title("Major Axis interaction Envelope")
     ax.set_xlabel('M [kNm]', loc='right')  # Move the x-axis label to the right
     ax.set_ylabel('N [kN]', loc='top')
+    # Add a legend in the top right corner of the plot
+    ax.legend(loc='upper right')
     canvas.draw()
 
 def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
-
-    Npl_Rd = (column.concrete_section.A * column.concrete_properties.f_cd + len(column.reinforcement.arrangement) * math.pi * column.reinforcement.bar_diameter**2 / 4 * column.reinforcement.f_yd)*1e-3
+    T_pl_Rd, Npl_Rd = compute_plastic_axial_capacity(column)
     # PLOT MAJOR AXIS INTERACTION DIAGRAM
     N_Rd_positive_list = []
     N_Rd_negative_list = []
     M_Rdz_positive_list = []
     M_Rdz_negative_list = []
+    # add maximum tensile axial capacity capacity point
+    M_Rdz_negative_list.append(0)
+    N_Rd_negative_list.append(T_pl_Rd)
+    M_Rdz_positive_list.append(0)
+    N_Rd_positive_list.append(T_pl_Rd)
     if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
         x_limit = column.concrete_section.b
     elif column.concrete_section.shape == "circular":
@@ -131,21 +144,24 @@ def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
         N_Rd, M_Rdz, steel_stresses, steel_strains = determine_envelope_value_minor_axis_positive(column, 0.8, x)
         N_Rd_positive_list.append(min(Npl_Rd,N_Rd))
         M_Rdz_positive_list.append(M_Rdz)
-
     for x in range(1, int(x_limit*5) ,1):
         # add axial force and major axis moment to list for plotting
         N_Rd, M_Rdz, steel_stresses, steel_strains = determine_envelope_value_minor_axis_negative(column, 0.8, x)
         N_Rd_negative_list.append(min(Npl_Rd,N_Rd))
         M_Rdz_negative_list.append(M_Rdz)
+    M_Rdz_negative_list.append(0)
+    N_Rd_negative_list.append(Npl_Rd)
+    M_Rdz_positive_list.append(0)
+    N_Rd_positive_list.append(Npl_Rd)
 
     ax.clear()
-    ax.plot(M_Rdz_positive_list, N_Rd_positive_list, label = 'Interaction envelope - major axis - positive moment', color = '#006D62')
-    ax.plot(M_Rdz_negative_list, N_Rd_negative_list, label = 'Interaction envelope - major axis - negative moment', linestyle = '--', color = '#802628')
-    ax.scatter(Mz_02,N_Ed, label = 'First Order design action effects', color = '#88BBC2')
-    ax.scatter(M_Edz,N_Ed, label = 'Second Order design action effects', color = '#C2B658')
+    ax.plot(M_Rdz_positive_list, N_Rd_positive_list, color = 'black')
+    ax.plot(M_Rdz_negative_list, N_Rd_negative_list, linestyle = '--', color = 'black')
+    ax.scatter(Mz_02,N_Ed, label = '1st Order action effects', color = '#88BBC2')
+    ax.scatter(M_Edz,N_Ed, label = '2nd Order action effects', color = '#C2B658')
     ax.axhline(0, color='black', linewidth=0.5)  # Horizontal line at y = 0
     ax.axvline(0, color='black', linewidth=0.5)  # Vertical line at x = 0
-    plt.grid(visible=True, which='both', color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.grid(visible=True, which='both', color='gray', linestyle='--', linewidth=0.5, alpha=0.7)
     ax.spines['left'].set_position(('data', 0)) # Move the left spine to x=0
     ax.spines['right'].set_color('none') # Hide the right spine
     ax.spines['bottom'].set_position(('data', 0)) # Move the bottom spine to y=0
@@ -154,8 +170,11 @@ def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
     ax.yaxis.set_ticks_position('left')
     ax.tick_params(axis='y', direction='inout', length=6)
     ax.tick_params(axis='x', rotation=90)
-    ax.set_xlabel('M [kNm]', loc='right')  # Move the x-axis label to the right
-    ax.set_ylabel('N [kN]', loc='top')
+    ax.set_title("Minor Axis interaction Envelope")
+    ax.set_xlabel('M [kNm]', loc='right', labelpad=2)  # Move the x-axis label to the right
+    ax.set_ylabel('N [kN]', loc='top', labelpad=2)
+    # Add a legend to differentiate between 1st and 2nd order plots
+    ax.legend(loc='upper right')  # Automatically place the legend in the best location
     canvas.draw()
 
 def plot3Dpoints(shape,  help=False):

@@ -282,9 +282,10 @@ class InputApp:
         # Add first plot frame
         self.plot1_frame = ttk.Frame(self.plot_frame)
         self.plot1_frame.grid(row=0, column=0, padx=5, pady=5)
-        self.fig1, self.ax1 = plt.subplots(figsize=(4, 4))
+        self.fig1, self.ax1 = plt.subplots(figsize=(6, 6))
         self.canvas1 = FigureCanvasTkAgg(self.fig1, master=self.plot1_frame)
         self.canvas1.get_tk_widget().pack()
+        self.ax1.grid(True)
         self.ax1.set_title("Major Axis interaction Envelope")
         self.ax1.set_xlabel("M [kNm]")
         self.ax1.set_ylabel("N [kN]")
@@ -292,9 +293,10 @@ class InputApp:
         # Add second plot frame next to the first
         self.plot2_frame = ttk.Frame(self.plot_frame)
         self.plot2_frame.grid(row=0, column=2, padx=5, pady=5)
-        self.fig2, self.ax2 = plt.subplots(figsize=(4, 4))
+        self.fig2, self.ax2 = plt.subplots(figsize=(6, 6))
         self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.plot2_frame)
         self.canvas2.get_tk_widget().pack()
+        self.ax2.grid(True)
         self.ax2.set_title("Minor Axis Interaction Envelope")
         self.ax2.set_xlabel("M [kNm]")
         self.ax2.set_ylabel("N [kN]")
