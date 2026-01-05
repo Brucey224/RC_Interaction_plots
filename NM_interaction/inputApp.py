@@ -47,7 +47,7 @@ class InputApp:
         # Radio Button Variable
         self.shape_var = tk.StringVar(value="rectangular")
         
-        self.coord_list = []
+        self.vertices = []
         self.bar_list = []
 
         # Create the main layout
@@ -112,8 +112,7 @@ class InputApp:
                 return      
                
         elif self.shape == "arbitrary":
-            self.vertices = self.vertices_input.get("1.0", tk.END).strip()
-            self.rebar_coords = self.rebar_coords_input.get("1.0", tk.END).strip()
+            pass
 
 
         type_mapping = {
@@ -450,8 +449,8 @@ class InputApp:
         self.close_boundary_button = ttk.Button(self.input_frame, text="Close section boundary", command=self.close_boundary)
         self.close_boundary_button.grid(row=0, column=4, padx=5, pady=5)
 
-        self.coord_display = tk.Text(self.input_frame, height=5, width=40, state="disabled")
-        self.coord_display.grid(row=1, column=0, rowspan = 2, columnspan=4, padx=5, pady=5)
+        self.vertices_display = tk.Text(self.input_frame, height=5, width=40, state="disabled")
+        self.vertices_display.grid(row=1, column=0, rowspan = 2, columnspan=4, padx=5, pady=5)
         # Add buttons for clearing and deleting last point
         self.delete_vertex_button = ttk.Button(self.input_frame, text="Delete Last Point", command=self.delete_last_point)
         self.delete_vertex_button.grid(row=1, column=3, padx=5, pady=5)
@@ -502,7 +501,7 @@ class InputApp:
         try:
             x = float(self.vertex_x_input.get())
             y = float(self.vertex_y_input.get())
-            self.coord_list.append([x, y])
+            self.vertices.append([x, y])
             
             # Update the list of coordiantes
             self.update_coord_display()
@@ -518,19 +517,19 @@ class InputApp:
 
     def update_coord_display(self):
         # Enable the text widget to update it
-        self.coord_display.config(state="normal")
-        self.coord_display.delete(1.0, tk.END)
+        self.vertices_display.config(state="normal")
+        self.vertices_display.delete(1.0, tk.END)
         
         # Display all coordinates
-        for coord in self.coord_list:
-            self.coord_display.insert(tk.END, f"[{coord[0]}, {coord[1]}]\n")
+        for coord in self.vertices:
+            self.vertices_display.insert(tk.END, f"[{coord[0]}, {coord[1]}]\n")
         
         # Disable the text widget to prevent editing
-        self.coord_display.config(state="disabled")
+        self.vertices_display.config(state="disabled")
 
     def close_boundary(self):
         try:
-            self.coord_list.append((self.coord_list[0]))
+            self.vertices.append((self.vertices[0]))
             # Update the list of coordiantes
             self.update_coord_display()
 
@@ -547,15 +546,15 @@ class InputApp:
             self.bar_display.insert(tk.END, f"[{coord[0]}, {coord[1]}]\n")
 
         # Disable the text widget to prevent editing
-        self.coord_display.config(state="disabled")
+        self.vertices_display.config(state="disabled")
 
     def update_section_plot(self):
         # Clear the previous plot
         self.ax0.clear()
         print("rebar_coordinates:", self.bar_list)
         # Unpack the list of coordinates into x and y values
-        if self.coord_list:
-            vertices_x_vals, vertices_y_vals = zip(*self.coord_list)
+        if self.vertices:
+            vertices_x_vals, vertices_y_vals = zip(*self.vertices)
             # Draw vectors (lines) between consecutive points
             self.ax0.plot(vertices_x_vals, vertices_y_vals, linestyle='-', marker='x', color='green')
             # Close the boundary by connecting the last point to the first
@@ -574,20 +573,20 @@ class InputApp:
 
     def delete_last_point(self):
         """Delete the last entered point from the list and update the graph."""
-        if self.coord_list:
-            self.coord_list.pop()
+        if self.vertices:
+            self.vertices.pop()
             self.update_coord_display()
             self.update_section_plot()
 
     def clear_vertices(self):
         """Clear all points from the list and update the graph."""
-        self.coord_list.clear()
+        self.vertices.clear()
         self.update_coord_display()
         self.update_section_plot()
 
     def delete_last_bar(self):
         """Delete the last entered point from the list and update the graph."""
-        if self.coord_list:
+        if self.bar_list:
             self.bar_list.pop()
             self.update_bar_display()
             self.update_section_plot()
@@ -610,8 +609,8 @@ class InputApp:
         My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, self.N_Ed, self.M_y_top, self.M_y_bottom, self.M_z_top, self.M_z_bottom)
         plot_major_axis_failure_envelope(self.ax1, self.canvas1, column, self.N_Ed, M_Edy, My_02)
         plot_minor_axis_failure_envelope(self.ax2, self.canvas2, column, self.N_Ed, M_Edz, Mz_02)
-        major_UTR, minor_UTR,combined_UTR =  compute_UTR(column, self.N_Ed, M_Edy, M_Edz)
-        self.update_utilisation(slenderness_ratio_y, slenderness_ratio_z,major_UTR, minor_UTR, combined_UTR)
+        # major_UTR, minor_UTR,combined_UTR =  compute_UTR(column, self.N_Ed, M_Edy, M_Edz)
+        # self.update_utilisation(slenderness_ratio_y, slenderness_ratio_z, major_UTR, minor_UTR, combined_UTR)
 
     def update_utilisation(self):
         # Placeholder for utilisation calculation logic
