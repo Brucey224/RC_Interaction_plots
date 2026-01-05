@@ -8,6 +8,7 @@ import math
 from .utils import get_concrete_properties
 from .plotting import plot_rectangular_section, plot_circular_section, plot_arbitrary_section, plot_major_axis_failure_envelope, plot_minor_axis_failure_envelope
 from .codeChecks import check_slenderness
+from .resistanceCalcs import compute_UTR
 from .classes import Column, Concrete_Section, Reinforcement, Concrete_Material
 
 class InputApp:
@@ -300,6 +301,11 @@ class InputApp:
         self.ax2.set_title("Minor Axis Interaction Envelope")
         self.ax2.set_xlabel("M [kNm]")
         self.ax2.set_ylabel("N [kN]")
+
+        # Add panel showing utilisation functions
+        self.utilisation_panel = ttk.Frame(self.plot_frame)
+        self.utilisation_panel.grid(row=1, column=0, rowspan =5, columnspan=3, padx=5, pady=5, sticky="nsew")
+        
 
         # Radio buttons for shape selection
         self.radio_frame = ttk.Frame(self.root)
@@ -604,3 +610,11 @@ class InputApp:
         My_01, My_02, Mz_01, Mz_02, M_Edy, M_Edz, slenderness_y, slenderness_z, slenderness_ratio_y, slenderness_ratio_z = check_slenderness(column, self.N_Ed, self.M_y_top, self.M_y_bottom, self.M_z_top, self.M_z_bottom)
         plot_major_axis_failure_envelope(self.ax1, self.canvas1, column, self.N_Ed, M_Edy, My_02)
         plot_minor_axis_failure_envelope(self.ax2, self.canvas2, column, self.N_Ed, M_Edz, Mz_02)
+        major_UTR, minor_UTR,combined_UTR =  compute_UTR(column, self.N_Ed, M_Edy, M_Edz)
+        self.update_utilisation(slenderness_ratio_y, slenderness_ratio_z,major_UTR, minor_UTR, combined_UTR)
+
+    def update_utilisation(self):
+        # Placeholder for utilisation calculation logic
+        # Replace this with actual calculations based on inputs
+        pass
+        

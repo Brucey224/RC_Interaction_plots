@@ -423,6 +423,7 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
     
     return N_Rd, M_Rdz, steel_stresses, steel_strains
 
-def determine_utilisation(N_Ed,M_Edy,M_Edz,column):
+def compute_UTR(N_Ed,M_Edy,M_Edz,column):
+    
     pass
 
