@@ -121,7 +121,6 @@ def determine_envelope_value_major_axis_positive(column, lambd, neutral_axis_y):
                 steel_strain = concrete_strain * (neutral_axis_y - rebar_coords[1]) / (neutral_axis_y)
             elif column.concrete_section.shape == "arbitrary":
                 steel_strain = concrete_strain * (neutral_axis_y - (rebar_coords[1]- column.concrete_section.bottom_of_section)) / (neutral_axis_y)
-                print(f'bottom of section: {column.concrete_section.bottom_of_section}, neutral axis: {neutral_axis_y}, rebar coords: {rebar_coords}, steel_strain: {steel_strain}')
         steel_stress = max(min(steel_strain*column.reinforcement.E_s*1e3, column.reinforcement.f_yd), -column.reinforcement.f_yd) # Steel stress in MPa, limited to design yield strength of steel bars
         steel_strains.append(steel_strain)
         steel_stresses.append(steel_stress) # steel stress in MPa
@@ -307,7 +306,10 @@ def determine_envelope_value_minor_axis_positive(column, lambd, neutral_axis_x):
     if in_section == True:
         concrete_strain = column.concrete_properties.eps_cu2                                                    # Concrete strain if neutral axis within section
     else:
-        concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - section_centroid[1])                                                     # Concrete strain if neutral axis outside of the section. Note that this is the concrete strain at the centre of the section, therefore computing steel strains realtive to this should use sim triangle from centre of section
+        if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
+            concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - column.concrete_section.b/2)
+        elif column.concrete_section.shape == "circular":
+            concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - column.concrete_section.diameter/2)                                               # Concrete strain if neutral axis outside of the section. Note that this is the concrete strain at the centre of the section, therefore computing steel strains realtive to this should use sim triangle from centre of section
     
     for rebar_coords in column.reinforcement.arrangement:                                                       
         if in_section ==True:
