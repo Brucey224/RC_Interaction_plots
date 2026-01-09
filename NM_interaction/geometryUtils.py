@@ -91,7 +91,7 @@ def compute_area_and_centroid(polygon):
     # Centroid Calculation
     Cx = np.sum((x[:-1] + x[1:]) * (y[:-1] * x[1:] - y[1:] * x[:-1])) / (6*A)
     Cy = np.sum((y[:-1] + y[1:]) * (y[:-1] * x[1:] - y[1:] * x[:-1])) / (6*A)
-    return A, (Cx, Cy)
+    return A, [Cx, Cy]
 
 def compute_second_moment_area(polygon: Polygon):
     c_x, c_y = polygon.centroid.x, polygon.centroid.y
