@@ -67,10 +67,6 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
     N_Rd_negative_list = []
     M_Rdy_positive_list = []
     M_Rdy_negative_list = []
-    M_Rdy_negative_list.append(0)
-    N_Rd_negative_list.append(T_pl_Rd)
-    M_Rdy_positive_list.append(0)
-    N_Rd_positive_list.append(T_pl_Rd)
     if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
         y_limit = column.concrete_section.h
     elif column.concrete_section.shape == "circular":
@@ -86,10 +82,6 @@ def plot_major_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edy, My_02):
         N_Rd, M_Rdy, steel_stresses, steel_strains = determine_envelope_value_major_axis_negative(column, 0.8, y)
         N_Rd_negative_list.append(min(Npl_Rd,N_Rd))
         M_Rdy_negative_list.append(M_Rdy)
-    M_Rdy_negative_list.append(0)
-    N_Rd_negative_list.append(Npl_Rd)
-    M_Rdy_positive_list.append(0)
-    N_Rd_positive_list.append(Npl_Rd)
 
     N_ratio = N_Ed / Npl_Rd
 
@@ -132,10 +124,7 @@ def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
     M_Rdz_positive_list = []
     M_Rdz_negative_list = []
     # add maximum tensile axial capacity capacity point
-    M_Rdz_negative_list.append(0)
-    N_Rd_negative_list.append(T_pl_Rd)
-    M_Rdz_positive_list.append(0)
-    N_Rd_positive_list.append(T_pl_Rd)
+
     if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
         x_limit = column.concrete_section.b
     elif column.concrete_section.shape == "circular":
@@ -149,10 +138,6 @@ def plot_minor_axis_failure_envelope(ax, canvas, column, N_Ed, M_Edz, Mz_02):
         N_Rd, M_Rdz, steel_stresses, steel_strains = determine_envelope_value_minor_axis_negative(column, 0.8, x)
         N_Rd_negative_list.append(min(Npl_Rd,N_Rd))
         M_Rdz_negative_list.append(M_Rdz)
-    M_Rdz_negative_list.append(0)
-    N_Rd_negative_list.append(Npl_Rd)
-    M_Rdz_positive_list.append(0)
-    N_Rd_positive_list.append(Npl_Rd)
 
     ax.clear()
     ax.plot(M_Rdz_positive_list, N_Rd_positive_list, color = 'black')

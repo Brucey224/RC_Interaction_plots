@@ -317,11 +317,11 @@ def determine_envelope_value_minor_axis_positive(column, lambd, neutral_axis_x):
                 steel_strain = concrete_strain * ((column.concrete_section.left_of_section + neutral_axis_x) - rebar_coords[0]) / (neutral_axis_x)   # Steel strain computed if neutral axis is within the section. Sim triangles 
         else:
             if column.concrete_section.shape == "rectangular":
-                steel_strain = concrete_strain * (neutral_axis_x - rebar_coords[0]) / (neutral_axis_x - column.concrete_section.b/2)
+                steel_strain = concrete_strain * (neutral_axis_x - rebar_coords[0]) / neutral_axis_x
             elif column.concrete_section.shape == "circular":
-                steel_strain = concrete_strain * (neutral_axis_x - rebar_coords[0]) / (neutral_axis_x - column.concrete_section.diameter/2)
+                steel_strain = concrete_strain * (neutral_axis_x - rebar_coords[0]) / neutral_axis_x
             elif column.concrete_section.shape == "arbitrary":
-                steel_strain = concrete_strain * ((column.concrete_section.left_of_section + neutral_axis_x) - rebar_coords[0]) / (neutral_axis_x - section_centroid[0])
+                steel_strain = concrete_strain * ((column.concrete_section.left_of_section + neutral_axis_x) - rebar_coords[0]) / (neutral_axis_x)
         
         steel_stress = max(min(steel_strain*column.reinforcement.E_s*1e3, column.reinforcement.f_yd), - column.reinforcement.f_yd) # Steel stress in MPa, limited to design yield strength of steel bars
         steel_strains.append(steel_strain)
@@ -382,7 +382,7 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
             in_section = False
 
         clipping_plane = column.concrete_section.right_of_section - lambd*neutral_axis_x
-        clipped_concrete = clip_polygon_at_x(column.concrete_section.polygon, (column.concrete_section.right_of_section - lambd*neutral_axis_x))
+        clipped_concrete = clip_polygon_at_x(column.concrete_section.polygon, clipping_plane) 
         for geom in clipped_concrete:
             if isinstance(geom, Polygon):
                 area, centroid = compute_area_and_centroid(geom) #area in mm^2, centroid in mm from extreme compression fibre
@@ -398,7 +398,10 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
     if in_section == True:
         concrete_strain = column.concrete_properties.eps_cu2
     else:
-        concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - section_centroid[0])
+        if column.concrete_section.shape == "rectangular" or column.concrete_section.shape == "arbitrary":
+            concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - column.concrete_section.b/2)
+        elif column.concrete_section.shape == "circular":
+            concrete_strain = column.concrete_properties.eps_c3*neutral_axis_x/(neutral_axis_x - column.concrete_section.diameter/2)
     
     for rebar_coords in column.reinforcement.arrangement:
         if in_section == True:
@@ -410,11 +413,11 @@ def determine_envelope_value_minor_axis_negative(column, lambd, neutral_axis_x):
                 steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.right_of_section - neutral_axis_x))/ neutral_axis_x
         else:
             if column.concrete_section.shape == "rectangular":
-                steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.b - neutral_axis_x)) / (neutral_axis_x - section_centroid[0])
+                steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.b - neutral_axis_x)) / (neutral_axis_x)
             elif column.concrete_section.shape == "circular":
-                steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.diameter - neutral_axis_x)) / (neutral_axis_x - section_centroid[0])
+                steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.diameter - neutral_axis_x)) / (neutral_axis_x)
             elif column.concrete_section.shape == "arbitrary":
-                steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.right_of_section - neutral_axis_x)) / (neutral_axis_x - section_centroid[0])
+                steel_strain = concrete_strain * (rebar_coords[0] - (column.concrete_section.right_of_section - neutral_axis_x)) / (neutral_axis_x)
 
         steel_stress = max(min(steel_strain * column.reinforcement.E_s*1e3, column.reinforcement.f_yd), -column.reinforcement.f_yd) # Steel stress in MPa, limited to design yield strength of steel bars
         steel_strains.append(steel_strain)
